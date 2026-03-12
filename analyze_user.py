@@ -22,6 +22,18 @@ def analyze_user_level(file_path, top_stocks_count=5, top_posts_count=3):
     df['正文'] = df['正文'].astype(str)
     df['发布时间'] = pd.to_datetime(df['发布时间'], errors='coerce')
     
+    # 0. 时间范围统计
+    valid_dates = df['发布时间'].dropna()
+    if not valid_dates.empty:
+        start_date = valid_dates.min().strftime('%Y-%m-%d')
+        end_date = valid_dates.max().strftime('%Y-%m-%d')
+        time_range_str = f"{start_date} 至 {end_date}"
+        days_diff = (valid_dates.max() - valid_dates.min()).days
+        post_frequency = len(df) / max(days_diff, 1)
+    else:
+        time_range_str = "未知"
+        post_frequency = 0
+
     # 1. 深度统计 (Content Depth)
     df['字数'] = df['正文'].apply(len)
     avg_len = df['字数'].mean()
@@ -52,7 +64,8 @@ def analyze_user_level(file_path, top_stocks_count=5, top_posts_count=3):
     print("\n" + "═" * 60)
     print(f" {header.center(58)} ")
     print("═" * 60)
-    print(f"  📝 总发言数: {len(df)} 篇")
+    print(f"  � 分析范围: {time_range_str} ({days_diff}天)")
+    print(f"  📝 总发言数: {len(df)} 篇 (约 {post_frequency:.2f} 篇/天)")
     print("-" * 60)
 
     print(f"\n[ 1. 内容深度 / 📚 CONTENT DEPTH ]")
@@ -84,7 +97,7 @@ def analyze_user_level(file_path, top_stocks_count=5, top_posts_count=3):
     for i, row in top_n.iterrows():
         time_str = row['发布时间'].strftime('%Y-%m-%d') if pd.notnull(row['发布时间']) else "未知时间"
         print(f"  ({i+1}) 📅 [{time_str}] ❤️ {int(row['点赞数'])} Likes")
-        print(f"      \"{str(row['摘要'])[:80]}...\"")
+        print(f"      \"{str(row['摘要'])[:300]}...\"")
         print()
 
     print("═" * 60 + "\n")

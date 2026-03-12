@@ -25,10 +25,10 @@ class XueqiuDrissionSpider:
         clean_text = clean_text.replace('&nbsp;', ' ').replace('&lt;', '<').replace('&gt;', '>').replace('&amp;', '&')
         return clean_text.strip()
 
-    def fetch_detail(self, url):
+    def fetch_detail(self, url, post_date):
         """访问帖子详情页获取完整正文"""
         fetch_start = time.time()
-        print(f"  [>] 正在爬取详情: {url}")
+        print(f"  [>] 正在爬取帖子: {post_date}")
         try:
             # 访问详情页
             self.page.get(url)
@@ -136,7 +136,7 @@ class XueqiuDrissionSpider:
                     post_url = item['链接']
                     if can_expand and post_url and 'xueqiu.com' in post_url:
                         # 访问详情页
-                        full_content, fetch_start = self.fetch_detail(post_url)
+                        full_content, fetch_start = self.fetch_detail(post_url, item['发布时间'])
                         item['正文'] = full_content if full_content else self.clean_html(raw_text)
                         
                         # 动态停留
@@ -151,9 +151,9 @@ class XueqiuDrissionSpider:
                         # 如果不能展开，直接使用 API 里的 text 字段并清洗
                         item['正文'] = self.clean_html(raw_text)
                         if can_expand: # 冗余逻辑：如果 expend 为 True 但没有链接，也只能用现有内容
-                             print(f"  [#] 内容可展开但无链接，跳过。")
+                             print(f"  \033[32m[#] 内容可展开但无链接，跳过。\033[0m")
                         else:
-                             print(f"  [#] 内容完整 (expend=False)，跳过详情页。")
+                             print(f"  \033[32m[#] 内容完整 (expend=False)，跳过详情页。\033[0m")
                     
                     all_data.append(item)
                     
@@ -171,8 +171,6 @@ class XueqiuDrissionSpider:
                         time_str = "正在计算..."
 
                     print(f"  [*] 进度: {idx}/{total_in_page} (总体:{items_done}/约{max_page_limit*20}) | {time_str}")
-                    
-                    all_data.append(item)
                 
                 print(f"[+] 第 {current_page} 页处理完成，当前累计 {len(all_data)} 条")
                 current_page += 1
@@ -187,6 +185,14 @@ class XueqiuDrissionSpider:
 
     def run(self, max_pages=None):
         try:
+            # 预先检查并删除旧文件，防止数据追加或冲突
+            if not os.path.exists("data"):
+                os.makedirs("data")
+            filename = os.path.join("data", f"xueqiu_full_{self.username}.csv")
+            if os.path.exists(filename):
+                print(f"[!] 发现已存在的旧文件 {filename}，正在删除以防止数据重复...")
+                os.remove(filename)
+
             self.setup_cookies()
             data = self.fetch_posts(max_pages)
             

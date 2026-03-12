@@ -5,15 +5,16 @@ from analyze_user import analyze_user_level
 
 # ================= 配置区 =================
 # 分析配置
-TOP_STOCKS_COUNT = 8  # 关注领域显示的股票数量
-TOP_POSTS_COUNT = 5   # 最火爆发言显示的条数
+TOP_STOCKS_COUNT = 20  # 关注领域显示的股票数量
+TOP_POSTS_COUNT = 10   # 最火爆发言显示的条数
 # ==========================================
 
 def main():
     # 强制控制台输出使用 UTF-8，防止中文和特殊符号乱码
     if sys.platform.startswith('win'):
         import io
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+        # 增加 line_buffering=True 解决 Windows 下输出缓存导致的延迟显示问题
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', line_buffering=True)
 
     if len(sys.argv) < 3:
         print("用法: python main.py <用户名> <用户ID> [最大页数]")
