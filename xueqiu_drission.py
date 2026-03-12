@@ -12,8 +12,15 @@ class XueqiuDrissionSpider:
         self.username = username
         self.user_id = user_id
         self.xq_a_token = xq_a_token  # 保留参数以防需要，但不再使用
+        
+        # 性能优化配置
+        from DrissionPage import ChromiumOptions
+        co = ChromiumOptions()
+        co.no_imgs(True)           # 禁用图片加载
+        co.set_load_mode('eager')  # DOM 加载完即返回，不等待图片和广告        # 预连接雪球，减少 DNS 解析和握手时间
+        co.set_argument('--dns-prefetch-disable', 'false')        
         # 初始化浏览器页面对象
-        self.page = ChromiumPage()
+        self.page = ChromiumPage(co)
         
     def clean_html(self, html_text):
         """去除 HTML 标签，如 <a>AAA</a> 简化为 AAA"""
@@ -28,13 +35,11 @@ class XueqiuDrissionSpider:
     def fetch_detail(self, url, post_date):
         """访问帖子详情页获取完整正文"""
         fetch_start = time.time()
-        print(f"  [>] 正在爬取帖子: {post_date}")
         try:
             # 访问详情页
             self.page.get(url)
-            # 移除固定的 time.sleep，改为更智能的元素等待
             
-            # 尝试不同的正文容器选择器
+            # 极致优化：缩短每个选择器的超时时间，一旦发现正文立即跳出
             selectors = [
                 '.status-detail', 
                 '.article__content', 
@@ -45,18 +50,15 @@ class XueqiuDrissionSpider:
             
             content = ""
             for selector in selectors:
-                try:
-                    # 使用较短的等待时间，如果页面已经加载完会很快
-                    ele = self.page.ele(selector, timeout=2)
-                    if ele and ele.text:
-                        content = ele.text
-                        break
-                except:
-                    continue
+                # 尝试快速寻找元素，超时设为 0.5s
+                ele = self.page.ele(selector, timeout=0.5)
+                if ele and ele.text:
+                    content = ele.text
+                    break
             
-            # 如果还是没找到，尝试通过 HTML 结构获取较大的文本块
+            # 如果还是没找到，尝试极速扫描 article 标签
             if not content:
-                main_article = self.page.ele('tag:article', timeout=1)
+                main_article = self.page.ele('tag:article', timeout=0.3)
                 if main_article:
                     content = main_article.text
             
@@ -68,6 +70,7 @@ class XueqiuDrissionSpider:
     def setup_cookies(self):
         """设置初始 Cookie 并访问主页过验证"""
         print("[+] 正在启动浏览器并访问雪球...")
+        self.page.get("https://xueqiu.com/")
         self.page.get("https://xueqiu.com/")
         
         if self.xq_a_token:
@@ -118,58 +121,10 @@ class XueqiuDrissionSpider:
                 total_in_page = len(statuses)
                 for idx, status in enumerate(statuses, 1):
                     post_id = str(status.get('id'))
+                    post_date = datetime.fromtimestamp(status.get('created_at') / 1000).strftime('%Y-%m-%d %H:%M:%S') if status.get('created_at') else '未知时间'
                     
-                    if post_id in existing_ids:
-                        print(f"  \033[33m[*] 帖子 {post_id} 已存在，跳过详情抓取。\033[0m")
-                        # 如果已存在，我们依然可以把简单的元数据放进去，最后统一去重
-                        # 或者直接 skip 循环到下一个
-                        continue
-                        
-                    # 获取 API 里的原始正文 (text 字段通常比 description 更完整)
-                    raw_text = status.get('text', '')
-                    raw_description = status.get('description', '')
-                    
-                    # 使用官方提供的 expend 字段判断是否可以展开（需要获取完整内容）
-                    can_expand = status.get('expend', False)
-                    
-                    # 基础信息
-                    item = {
-                        'ID': status.get('id'),
-                        '发布时间': datetime.fromtimestamp(status.get('created_at') / 1000).strftime('%Y-%m-%d %H:%M:%S') if status.get('created_at') else '',
-                        '摘要': self.clean_html(raw_description),
-                        '点赞数': status.get('like_count'),
-                        '评论数': status.get('reply_count'),
-                        '转发数': status.get('retweet_count'),
-                        '链接': f"https://xueqiu.com{status.get('target')}"
-                    }
-                    
-                    # 只有在可以展开的情况下才去爬详情页获取完整内容
-                    post_url = item['链接']
-                    if can_expand and post_url and 'xueqiu.com' in post_url:
-                        # 访问详情页
-                        full_content, fetch_start = self.fetch_detail(post_url, item['发布时间'])
-                        item['正文'] = full_content if full_content else self.clean_html(raw_text)
-                        
-                        # 动态停留
-                        content_len = len(item['正文'])
-                        target_wait = 1 + min(4, content_len / 1000)
-                        time_already_spent = time.time() - fetch_start
-                        actual_sleep = max(0.1, target_wait - time_already_spent)
-                        
-                        print(f"  [#] 检测到 expend=True，可以展开深入抓取。目标总时: {target_wait:.2f}s, 补填休息: {actual_sleep:.2f}s")
-                        time.sleep(actual_sleep)
-                    else:
-                        # 如果不能展开，直接使用 API 里的 text 字段并清洗
-                        item['正文'] = self.clean_html(raw_text)
-                        if can_expand: # 冗余逻辑：如果 expend 为 True 但没有链接，也只能用现有内容
-                             print(f"  \033[32m[#] 内容可展开但无链接，跳过。\033[0m")
-                        else:
-                             print(f"  \033[32m[#] 内容完整 (expend=False)，跳过详情页。\033[0m")
-                    
-                    all_data.append(item)
-                    
-                    # 总体进度统计
-                    items_done = len(all_data)
+                    # 进度字符串
+                    items_done = len(all_data) + 1 # 包含当前这一个
                     elapsed = time.time() - job_start
                     if items_done > 1:
                         avg_time = elapsed / items_done
@@ -177,13 +132,60 @@ class XueqiuDrissionSpider:
                         eta_seconds = remaining_tasks * avg_time
                         m, s = divmod(int(elapsed), 60)
                         rem_m, rem_s = divmod(int(eta_seconds), 60)
-                        time_str = f"已用:{m:02d}m{s:02d}s, 预计剩余:{rem_m:02d}m{rem_s:02d}s"
+                        time_str = f"{m:02d}m{s:02d}s 剩{rem_m:02d}m{rem_s:02d}s"
                     else:
-                        time_str = "正在计算..."
+                        time_str = "计算中..."
+                    
+                    progress_info = f"[*] [{idx}/{total_in_page}] (总:{items_done}) [{time_str}] {post_date}"
 
-                    print(f"  [*] 进度: {idx}/{total_in_page} (总体:{items_done}/约{max_page_limit*20}) | {time_str}")
+                    if post_id in existing_ids:
+                        print(f"{progress_info} | \033[33m[跳过] 已存在于本地\033[0m")
+                        continue
+                        
+                    # 获取 API 里的原始正文
+                    raw_text = status.get('text', '')
+                    raw_description = status.get('description', '')
+                    can_expand = status.get('expend', False)
+                    
+                    item = {
+                        'ID': status.get('id'),
+                        '发布时间': post_date,
+                        '摘要': self.clean_html(raw_description),
+                        '点赞数': status.get('like_count'),
+                        '评论数': status.get('reply_count'),
+                        '转发数': status.get('retweet_count'),
+                        '链接': f"https://xueqiu.com{status.get('target')}"
+                    }
+                    
+                    # 记录单篇帖子开始处理的时间
+                    post_process_start = time.time()
+                    
+                    # 抓取详情或直接使用
+                    post_url = item['链接']
+                    if can_expand and post_url and 'xueqiu.com' in post_url:
+                        full_content, fetch_start = self.fetch_detail(post_url, post_date)
+                        item['正文'] = full_content if full_content else self.clean_html(raw_text)
+                        
+                        # 动态停留逻辑
+                        content_len = len(item['正文'])
+                        target_wait = 1 + min(4, content_len / 1000)
+                        time_already_spent = time.time() - fetch_start
+                        actual_sleep = max(0.1, target_wait - time_already_spent)
+                        
+                        time.sleep(actual_sleep)
+                        # 计算单篇总耗时
+                        post_duration = time.time() - post_process_start
+                        print(f"{progress_info} | \033[34m[抓取] {content_len}字 | 耗时:{post_duration:.1f}s\033[0m")
+                    else:
+                        item['正文'] = self.clean_html(raw_text)
+                        status_msg = "\033[32m[完整] 直接获取\033[0m" if not can_expand else "\033[32m[限制] 无链接跳过\033[0m"
+                        # 计算单篇总耗时
+                        post_duration = time.time() - post_process_start
+                        print(f"{progress_info} | {status_msg} | 耗时:{post_duration:.2f}s")
+                    
+                    all_data.append(item)
                 
-                print(f"[+] 第 {current_page} 页处理完成，当前累计 {len(all_data)} 条")
+                print(f"\n[+] 第 {current_page} 页处理完成，当前累计 {len(all_data)} 条")
                 current_page += 1
                 
             except Exception as e:
