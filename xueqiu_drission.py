@@ -79,13 +79,16 @@ class XueqiuDrissionSpider:
         print("[+] 等待 WAF 验证完成...")
         time.sleep(5)
 
-    def fetch_posts(self, max_pages=None):
+    def fetch_posts(self, start_page=1, end_page=None, existing_ids=None):
         """抓取用户帖子列表并深入抓取正文"""
         all_data = []
         job_start = time.time()
         
-        current_page = 1
-        max_page_limit = max_pages if max_pages else 9999
+        if existing_ids is None:
+            existing_ids = set()
+            
+        current_page = start_page
+        max_page_limit = end_page if end_page else 9999
         total_expected = 0
 
         while current_page <= max_page_limit:
@@ -100,13 +103,13 @@ class XueqiuDrissionSpider:
                     break
                 
                 # 自动检测最大页码
-                if current_page == 1:
+                if current_page == start_page:
                     actual_max_page = res_data.get('maxPage', 1)
                     total_expected_count = res_data.get('total', 0)
-                    if max_pages is None:
+                    if end_page is None:
                         max_page_limit = actual_max_page
                     print(f"[!] 检测到该用户总共有 {actual_max_page} 页，共 {total_expected_count} 条发言")
-                    total_expected = max_page_limit * 20 # 预估总数
+                    total_expected = (max_page_limit - start_page + 1) * 20 # 预估总数
                 
                 statuses = res_data['statuses']
                 if not statuses:
@@ -114,6 +117,14 @@ class XueqiuDrissionSpider:
                 
                 total_in_page = len(statuses)
                 for idx, status in enumerate(statuses, 1):
+                    post_id = str(status.get('id'))
+                    
+                    if post_id in existing_ids:
+                        print(f"  \033[33m[*] 帖子 {post_id} 已存在，跳过详情抓取。\033[0m")
+                        # 如果已存在，我们依然可以把简单的元数据放进去，最后统一去重
+                        # 或者直接 skip 循环到下一个
+                        continue
+                        
                     # 获取 API 里的原始正文 (text 字段通常比 description 更完整)
                     raw_text = status.get('text', '')
                     raw_description = status.get('description', '')
@@ -162,7 +173,7 @@ class XueqiuDrissionSpider:
                     elapsed = time.time() - job_start
                     if items_done > 1:
                         avg_time = elapsed / items_done
-                        remaining_tasks = max(0, (max_page_limit * 20) - items_done)
+                        remaining_tasks = max(0, ((max_page_limit - start_page + 1) * 20) - items_done)
                         eta_seconds = remaining_tasks * avg_time
                         m, s = divmod(int(elapsed), 60)
                         rem_m, rem_s = divmod(int(eta_seconds), 60)
@@ -183,32 +194,50 @@ class XueqiuDrissionSpider:
             
         return all_data
 
-    def run(self, max_pages=None):
+    def run(self, start_page=1, end_page=None):
         try:
-            # 预先检查并删除旧文件，防止数据追加或冲突
+            # 确保 data 目录存在
             if not os.path.exists("data"):
                 os.makedirs("data")
             filename = os.path.join("data", f"xueqiu_full_{self.username}.csv")
+            
+            # 加载现有数据用于去重
+            existing_ids = set()
+            existing_df = pd.DataFrame()
             if os.path.exists(filename):
-                print(f"[!] 发现已存在的旧文件 {filename}，正在删除以防止数据重复...")
-                os.remove(filename)
+                try:
+                    existing_df = pd.read_csv(filename, encoding='utf-8-sig')
+                    existing_ids = set(existing_df['ID'].astype(str).tolist())
+                    print(f"[*] 已加载本地数据，包含 {len(existing_ids)} 条记录。")
+                except Exception as e:
+                    print(f"[!] 读取旧文件失败，将作为新任务开始: {e}")
 
             self.setup_cookies()
-            data = self.fetch_posts(max_pages)
+            # 传入已有的 IDs 避免重复爬取详情页
+            data = self.fetch_posts(start_page, end_page, existing_ids)
             
             if data:
-                df = pd.DataFrame(data)
-                # 确保 data 目录存在
-                if not os.path.exists("data"):
-                    os.makedirs("data")
-                filename = os.path.join("data", f"xueqiu_full_{self.username}.csv")
-                # 重新排序字段，让正文排在摘要后面
+                new_df = pd.DataFrame(data)
+                # 合并新旧数据
+                if not existing_df.empty:
+                    df = pd.concat([existing_df, new_df], ignore_index=True)
+                else:
+                    df = new_df
+                
+                # 根据 ID 去重，保留最新的记录（通常新爬取的在前或后，这里统一去重）
+                df['ID'] = df['ID'].astype(str)
+                df.drop_duplicates(subset=['ID'], keep='last', inplace=True)
+                
+                # 重新排序字段
                 cols = ['ID', '发布时间', '点赞数', '评论数', '转发数', '链接', '摘要', '正文']
                 df = df[cols]
+                # 按时间排序（可选，方便查看）
+                df.sort_values(by='发布时间', ascending=False, inplace=True)
+                
                 df.to_csv(filename, index=False, encoding='utf-8-sig')
-                print(f"[!] 任务完成！包含正文的数据已保存至 {filename}")
+                print(f"[!] 任务完成！共保存 {len(df)} 条唯一记录至 {filename}")
             else:
-                print("[-] 未能抓取到任何数据。")
+                print("[-] 未获取到新数据。")
         finally:
             print("[+] 任务结束，正在关闭浏览器...")
             self.page.quit()
