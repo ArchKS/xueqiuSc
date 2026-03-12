@@ -118,8 +118,8 @@ class XueqiuDrissionSpider:
                     raw_text = status.get('text', '')
                     raw_description = status.get('description', '')
                     
-                    # 使用官方提供的 truncated 字段判断是否截断
-                    is_truncated = status.get('truncated', False)
+                    # 使用官方提供的 expend 字段判断是否可以展开（需要获取完整内容）
+                    can_expand = status.get('expend', False)
                     
                     # 基础信息
                     item = {
@@ -132,9 +132,9 @@ class XueqiuDrissionSpider:
                         '链接': f"https://xueqiu.com{status.get('target')}"
                     }
                     
-                    # 只有在被截断的情况下才去爬详情页
+                    # 只有在可以展开的情况下才去爬详情页获取完整内容
                     post_url = item['链接']
-                    if is_truncated and post_url and 'xueqiu.com' in post_url:
+                    if can_expand and post_url and 'xueqiu.com' in post_url:
                         # 访问详情页
                         full_content, fetch_start = self.fetch_detail(post_url)
                         item['正文'] = full_content if full_content else self.clean_html(raw_text)
@@ -145,15 +145,15 @@ class XueqiuDrissionSpider:
                         time_already_spent = time.time() - fetch_start
                         actual_sleep = max(0.1, target_wait - time_already_spent)
                         
-                        print(f"  [#] 检测到 truncated=True，深入抓取。目标总时: {target_wait:.2f}s, 补填休息: {actual_sleep:.2f}s")
+                        print(f"  [#] 检测到 expend=True，可以展开深入抓取。目标总时: {target_wait:.2f}s, 补填休息: {actual_sleep:.2f}s")
                         time.sleep(actual_sleep)
                     else:
-                        # 如果没截断，直接使用 API 里的 text 字段并清洗
+                        # 如果不能展开，直接使用 API 里的 text 字段并清洗
                         item['正文'] = self.clean_html(raw_text)
-                        if is_truncated: # 冗余逻辑：如果 truncated 为 True 但没有链接，也只能用现有内容
-                             print(f"  [#] 内容虽截断但无链接，跳过。")
+                        if can_expand: # 冗余逻辑：如果 expend 为 True 但没有链接，也只能用现有内容
+                             print(f"  [#] 内容可展开但无链接，跳过。")
                         else:
-                             print(f"  [#] 内容完整 (truncated=False)，跳过详情页。")
+                             print(f"  [#] 内容完整 (expend=False)，跳过详情页。")
                     
                     all_data.append(item)
                     
