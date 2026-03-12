@@ -7,8 +7,8 @@ if __name__ == "__main__":
     opts = ChromiumOptions()
     opts.headless(False)
     page = ChromiumPage(opts)
-    # 打开空白页以确保窗口弹出
-    page.get('about:blank')
+    # 打开雪球首页，方便用户登录
+    page.get('https://xueqiu.com')
     print("浏览器已打开，按回车关闭程序")
     try:
         input()

@@ -67,12 +67,16 @@ self.page = ChromiumPage(addr=r'C:\Program Files\Google\Chrome\Application\chrom
 **问题：权限不足 (Permission Denied)**
 - 解决：确保有 Python 依赖安装权限，可能需要使用 `pip install --user` 或虚拟环境
 
-> ✅ **快速检测**
+> ✅ **快速检测与登录**
 > 如果想验证 DrissionPage 是否安装并能正常启动浏览器，可运行仓库根目录下的 `run.py`：
 > ```bash
 > python run.py
 > ```
-> 该脚本会以非无头模式启动一个 Chromium 窗口并打开空白页，等待按回车关闭；窗口弹出即表示配置成功。
+> 该脚本会以非无头模式启动一个 Chromium 窗口并打开雪球首页（https://xueqiu.com），方便你手动登录。登录成功后关闭浏览器，然后再运行爬虫主程序。
+> 
+> **使用流程**：先运行 `run.py` 进行浏览器登录，确认 Cookie 记录在会话中；之后再执行 `main.py` 抓取数据。
+> 
+> 如果窗口成功弹出并能上网，说明配置和登录都正常。
 
 ---
 
@@ -103,6 +107,17 @@ python analyze_user.py data/xueqiu_full_KeepSlowly.csv
 ```
 
 ---
+
+## 认证说明
+
+**无需手动配置认证信息！**
+
+项目采用浏览器会话认证方式：
+1. 先运行 `run.py` 打开浏览器并手动登录雪球账号
+2. 登录成功后关闭浏览器窗口
+3. 再运行 `main.py` 进行数据抓取
+
+这种方式比手动配置 token 更安全可靠，无需担心 token 过期问题。
 
 ## 关于反爬 (Anti-Anti-Debugging)
 ... (existing content) ...

@@ -11,7 +11,7 @@ class XueqiuDrissionSpider:
     def __init__(self, username, user_id, xq_a_token=None):
         self.username = username
         self.user_id = user_id
-        self.xq_a_token = xq_a_token
+        self.xq_a_token = xq_a_token  # 保留参数以防需要，但不再使用
         # 初始化浏览器页面对象
         self.page = ChromiumPage()
         
@@ -210,9 +210,9 @@ class XueqiuDrissionSpider:
 if __name__ == "__main__":
     USERNAME = "KeepSlowly"
     USER_ID = "2287364713"
-    XQ_A_TOKEN = "504a44e00386c3f66bbe3f3d99efa234850e2e30"
+    # XQ_A_TOKEN 不再需要，依赖 run.py 中的浏览器登录会话
     
-    spider = XueqiuDrissionSpider(USERNAME, USER_ID, xq_a_token=XQ_A_TOKEN)
+    spider = XueqiuDrissionSpider(USERNAME, USER_ID)
     # 不传参数默认爬取全部页码
     spider.run() 
 

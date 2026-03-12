@@ -4,10 +4,7 @@ from xueqiu_drission import XueqiuDrissionSpider
 from analyze_user import analyze_user_level
 
 # ================= 配置区 =================
-# 1. 雪球登录 Token (必填)
-XQ_A_TOKEN = "504a44e00386c3f66bbe3f3d99efa234850e2e30"
-
-# 2. 分析配置
+# 分析配置
 TOP_STOCKS_COUNT = 8  # 关注领域显示的股票数量
 TOP_POSTS_COUNT = 5   # 最火爆发言显示的条数
 # ==========================================
@@ -38,16 +35,13 @@ def main():
         except ValueError:
             print("[-] 错误: 最大页数必须是数字。将默认爬取所有页。")
 
-    # 你提供的固定 Token
-    XQ_A_TOKEN = "504a44e00386c3f66bbe3f3d99efa234850e2e30"
-
     # 构造生成的文件路径
     target_file = os.path.join("data", f"xueqiu_full_{username}.csv")
 
     # 如果不是仅分析模式 (-1)，则执行爬取
     if max_pages != -1:
         print(f"\n[Step 1] 开始爬取用户 {username}({uid}) 的数据...")
-        spider = XueqiuDrissionSpider(username, uid, xq_a_token=XQ_A_TOKEN)
+        spider = XueqiuDrissionSpider(username, uid)
         spider.run(max_pages=max_pages)
     
     if os.path.exists(target_file):
