@@ -93,16 +93,33 @@ class XueqiuDrissionSpider:
         current_page = start_page
         max_page_limit = end_page if end_page else 9999
         total_expected = 0
+        last_id = None # 用于 max_id 分页
 
         while current_page <= max_page_limit:
-            print(f"[*] 正在获取第 {current_page} 页列表...")
+            # 构造 URL，如果不是第一页则带上 max_id (雪球更推荐的分页方式，更稳定)
             api_url = f"https://xueqiu.com/v4/statuses/user_timeline.json?page={current_page}&user_id={self.user_id}&count=20"
+            if last_id and current_page > 1:
+                api_url += f"&max_id={last_id}"
+            
+            # 关键修复：先回到个人主页建立 Referer 上下文，防止直接跳转 API 触发 WAF 令牌挑战
+            if self.page.url != f"https://xueqiu.com/u/{self.user_id}":
+                self.page.get(f"https://xueqiu.com/u/{self.user_id}")
+                time.sleep(1)
+
+            print(f"[*] 正在获取第 {current_page} 页列表...")
             self.page.get(api_url)
             
-            try:
+            # 等待潜在的 WAF 跳转完成（处理 md5__1038 等令牌挑战）
+            res_data = None
+            for _ in range(5):
                 res_data = self.page.json
+                if res_data and 'statuses' in res_data:
+                    break
+                time.sleep(1)
+            
+            try:
                 if not res_data or 'statuses' not in res_data:
-                    print(f"[-] 第 {current_page} 页未获取到列表。")
+                    print(f"[-] 第 {current_page} 页未获取到列表。内容可能是 WAF 验证页。")
                     break
                 
                 # 自动检测最大页码
@@ -111,12 +128,26 @@ class XueqiuDrissionSpider:
                     total_expected_count = res_data.get('total', 0)
                     if end_page is None:
                         max_page_limit = actual_max_page
+                    
+                    # 确定本次任务的精确/预估总数
+                    effective_end_page = min(max_page_limit, actual_max_page)
+                    
+                    if start_page == 1 and (end_page is None or end_page >= actual_max_page):
+                        # 1. 全量爬取：直接使用 API 提供的精确总数
+                        total_expected = total_expected_count
+                    else:
+                        # 2. 范围爬取：使用估算值 (每页20条)
+                        total_expected = (effective_end_page - start_page + 1) * 20
+                        
                     print(f"[!] 检测到该用户总共有 {actual_max_page} 页，共 {total_expected_count} 条发言")
-                    total_expected = (max_page_limit - start_page + 1) * 20 # 预估总数
                 
                 statuses = res_data['statuses']
                 if not statuses:
                     break
+                
+                # 更新 last_id 用于下一页
+                if statuses:
+                    last_id = statuses[-1].get('id')
                 
                 total_in_page = len(statuses)
                 for idx, status in enumerate(statuses, 1):
@@ -136,7 +167,7 @@ class XueqiuDrissionSpider:
                     else:
                         time_str = "计算中..."
                     
-                    progress_info = f"[*] [{idx}/{total_in_page}] (总:{items_done}) [{time_str}] {post_date}"
+                    progress_info = f"[*] [{idx}/{total_in_page}] (总:{items_done}/{total_expected}) [{time_str}] {post_date}"
 
                     if post_id in existing_ids:
                         print(f"{progress_info} | \033[33m[跳过] 已存在于本地\033[0m")
