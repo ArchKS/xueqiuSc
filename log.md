@@ -35,5 +35,7 @@
 - **成果**：解决了 Windows 环境下处理包含中文字符的 CSV 文件时出现的 `UnicodeDecodeError`。
 
 ### 8. 项目结构整合 (CLI)
-- **新增**：创建了 `main.py` 主入口，支持命令行参数：`python main.py <UID> [max_pages]`。
+- **新增**：创建了 `main.py` 主入口，支持参数模式：`python main.py <用户名> <UID> [max_pages]`。
+- **优化**：生成的文件名采用 `xueqiu_full_<用户名>.csv`，更具可读性。
+- **优化**：将生成的所有 CSV 数据文件统一存放在 `data/` 目录下，保持项目根目录整洁。
 - **文档**：编写了 `Usage.md` 和本开发日志 `log.md`。

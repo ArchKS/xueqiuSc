@@ -1,5 +1,6 @@
 from DrissionPage import ChromiumPage
 import time
+import os
 import pandas as pd
 import json
 import re
@@ -7,7 +8,8 @@ import random
 from datetime import datetime
 
 class XueqiuDrissionSpider:
-    def __init__(self, user_id, xq_a_token=None):
+    def __init__(self, username, user_id, xq_a_token=None):
+        self.username = username
         self.user_id = user_id
         self.xq_a_token = xq_a_token
         # 初始化浏览器页面对象
@@ -190,7 +192,10 @@ class XueqiuDrissionSpider:
             
             if data:
                 df = pd.DataFrame(data)
-                filename = f"xueqiu_full_{self.user_id}.csv"
+                # 确保 data 目录存在
+                if not os.path.exists("data"):
+                    os.makedirs("data")
+                filename = os.path.join("data", f"xueqiu_full_{self.username}.csv")
                 # 重新排序字段，让正文排在摘要后面
                 cols = ['ID', '发布时间', '点赞数', '评论数', '转发数', '链接', '摘要', '正文']
                 df = df[cols]
@@ -203,10 +208,11 @@ class XueqiuDrissionSpider:
             self.page.quit()
 
 if __name__ == "__main__":
+    USERNAME = "KeepSlowly"
     USER_ID = "2287364713"
     XQ_A_TOKEN = "504a44e00386c3f66bbe3f3d99efa234850e2e30"
     
-    spider = XueqiuDrissionSpider(USER_ID, xq_a_token=XQ_A_TOKEN)
+    spider = XueqiuDrissionSpider(USERNAME, USER_ID, xq_a_token=XQ_A_TOKEN)
     # 不传参数默认爬取全部页码
     spider.run() 
 

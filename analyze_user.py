@@ -3,7 +3,7 @@ import re
 import os
 from datetime import datetime
 
-def analyze_user_level(file_path):
+def analyze_user_level(file_path, top_stocks_count=5, top_posts_count=3):
     if not os.path.exists(file_path):
         print(f"[-] 错误: 文件 {file_path} 不存在。请先运行爬虫。")
         return
@@ -45,49 +45,62 @@ def analyze_user_level(file_path):
         for m in matches:
             all_stocks.append(m[0].strip())
     
-    stock_counts = pd.Series(all_stocks).value_counts().head(5)
+    stock_counts = pd.Series(all_stocks).value_counts().head(top_stocks_count)
 
     # 5. 输出结果报告
-    print("\n" + "="*50)
-    print(f"📊 雪球用户投资水平分析报告")
-    print(f"分析文件: {os.path.basename(file_path)}")
-    print(f"总发言数: {len(df)} 篇")
-    print("="*50)
+    header = f" 📊 USER ANALYSIS REPORT: {os.path.basename(file_path)} "
+    print("\n" + "═" * 60)
+    print(f" {header.center(58)} ")
+    print("═" * 60)
+    print(f"  📝 总发言数: {len(df)} 篇")
+    print("-" * 60)
 
-    print(f"\n[1. 内容深度]")
-    print(f" - 平均字数: {avg_len:.1f}")
-    print(f" - 字数中位数: {median_len:.1f}")
-    print(f" - 千字长文数: {long_article_count} (占比 {long_article_ratio:.1f}%)")
-    print(f"   💡 {'深度型选手' if long_article_ratio > 10 else '短评/碎片化选手'}")
+    print(f"\n[ 1. 内容深度 / 📚 CONTENT DEPTH ]")
+    print(f"  + 平均字数: {avg_len:.1f}")
+    print(f"  + 字数中位数: {median_len:.1f}")
+    print(f"  + 千字长文: {long_article_count} 篇 (占比 {long_article_ratio:.1f}%)")
+    status_label = '深度型选手 🧠' if long_article_ratio > 10 else '短评/碎片化选手 ⚡'
+    print(f"  [!] 用户画像: >>> {status_label} <<<")
 
-    print(f"\n[2. 社区影响力]")
-    print(f" - 平均点赞: {avg_likes:.1f}")
-    print(f" - 点赞中位数: {median_likes:.1f}")
-    print(f" - 互动效率: {engagement_efficiency:.2f} 次点赞/每千字")
-    print(f"   💡 {'高质量博主' if avg_likes > 20 else '普通用户'}")
+    print(f"\n[ 2. 社区影响力 / 🔥 INFLUENCE ]")
+    print(f"  + 平均点赞: {avg_likes:.1f}")
+    print(f"  + 点赞中位数: {median_likes:.1f}")
+    print(f"  + 互动效率: {engagement_efficiency:.2f} 次点赞/每千字")
+    influence_label = '高质量博主 🏆' if avg_likes > 20 else '普通用户 👤'
+    print(f"  [!] 影响力评级: >>> {influence_label} <<<")
 
-    print(f"\n[3. 关注领域 (Top 5 提及次数)]")
+    print(f"\n[ 3. 关注领域 / 🎯 TOP {top_stocks_count} STOCKS ]")
+    print("-" * 30)
     if not stock_counts.empty:
-        for stock, count in stock_counts.items():
-            print(f" - {stock}: {count} 次")
+        for i, (stock, count) in enumerate(stock_counts.items(), 1):
+            bar = "📈" * min(int(count), 10) # 使用趋势图 Emoji 作为条形图
+            print(f"  {i}. {str(stock).ljust(12)} | {str(count).rjust(3)} 次 {bar}")
     else:
-        print(" - 未提取到明确的股票提及")
+        print("  (未提取到明确的股票提及)")
 
-    print(f"\n[4. 最火爆的 3 篇发言]")
-    top_3 = df.nlargest(3, '点赞数')[['发布时间', '点赞数', '摘要']]
-    for i, row in top_3.iterrows():
+    print(f"\n[ 4. 最火爆的 {top_posts_count} 篇发言 / 🌟 TOP POSTS ]")
+    print("-" * 30)
+    top_n = df.nlargest(top_posts_count, '点赞数')[['发布时间', '点赞数', '摘要']]
+    for i, row in top_n.iterrows():
         time_str = row['发布时间'].strftime('%Y-%m-%d') if pd.notnull(row['发布时间']) else "未知时间"
-        print(f" - [{time_str}] 点赞:{int(row['点赞数'])} | {str(row['摘要'])[:60]}...")
+        print(f"  ({i+1}) 📅 [{time_str}] ❤️ {int(row['点赞数'])} Likes")
+        print(f"      \"{str(row['摘要'])[:80]}...\"")
+        print()
 
-    print("\n" + "="*50)
+    print("═" * 60 + "\n")
 
 if __name__ == "__main__":
-    # 默认分析最后一次爬取的用户（可以手动修改路径）
-    USER_ID = "2287364713"
-    target_file = f"xueqiu_full_{USER_ID}.csv"
+    import sys
     
-    # 如果全量文件没生成，尝试找基础文件
-    if not os.path.exists(target_file):
-        target_file = f"xueqiu_drission_{USER_ID}.csv"
-        
-    analyze_user_level(target_file)
+    # 支持从命令行指定文件名：python analyze_user.py <文件名>
+    if len(sys.argv) > 1:
+        target_file = sys.argv[1]
+    else:
+        # 默认分析示例用户
+        USERNAME = "KeepSlowly"
+        target_file = os.path.join("data", f"xueqiu_full_{USERNAME}.csv")
+    
+    print(f"[*] 正在分析文件: {target_file}")
+    
+    # 默认配置
+    analyze_user_level(target_file, top_stocks_count=8, top_posts_count=5)
