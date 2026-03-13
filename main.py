@@ -62,7 +62,7 @@ def main():
             print("[-] 错误: 参数必须是数字")
 
     # 构造生成的文件路径
-    target_file = os.path.join("data", f"xueqiu_full_{username}.csv")
+    target_file = os.path.join("data", f"{username}.csv")
 
     # 如果不是仅分析模式 (-1)，则执行爬取
     if start_page != -1:

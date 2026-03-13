@@ -111,7 +111,7 @@ if __name__ == "__main__":
     else:
         # 默认分析示例用户
         USERNAME = "KeepSlowly"
-        target_file = os.path.join("data", f"xueqiu_full_{USERNAME}.csv")
+        target_file = os.path.join("data", f"{USERNAME}.csv")
     
     print(f"正在分析文件: {target_file}")
     

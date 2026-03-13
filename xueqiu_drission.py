@@ -359,7 +359,7 @@ class XueqiuDrissionSpider:
             # 确保 data 目录存在
             if not os.path.exists("data"):
                 os.makedirs("data")
-            filename = os.path.join("data", f"xueqiu_full_{self.username}.csv")
+            filename = os.path.join("data", f"{self.username}.csv")
 
             # 每次运行前清空该用户旧的原始 jsonl，避免多次运行结果混在一起
             json_dir = 'json'

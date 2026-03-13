@@ -103,7 +103,7 @@ python main.py 用户名 用户ID -1
 
 **方法 B：直接运行分析脚本 (指定文件路径)**
 ```bash
-python analyze_user.py data/xueqiu_full_KeepSlowly.csv
+python analyze_user.py data/KeepSlowly.csv
 ```
 
 ---
