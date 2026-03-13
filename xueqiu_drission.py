@@ -68,6 +68,26 @@ class XueqiuDrissionSpider:
 
         return None
 
+    def append_raw_json(self, data, page_no):
+        """将每页原始 JSON 追加保存到 json 目录。"""
+        if not data:
+            return
+        json_dir = 'json'
+        if not os.path.exists(json_dir):
+            os.makedirs(json_dir)
+
+        file_path = os.path.join(json_dir, f'xueqiu_raw_{self.username}.jsonl')
+        record = {
+            'page': page_no,
+            'user_id': self.user_id,
+            'username': self.username,
+            'saved_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'data': data,
+        }
+        with open(file_path, 'a', encoding='utf-8') as f:
+            f.write(json.dumps(record, ensure_ascii=False))
+            f.write('\n')
+
     def fetch_detail(self, url, post_date):
         """访问帖子详情页获取完整正文"""
         fetch_start = time.time()
@@ -185,6 +205,13 @@ class XueqiuDrissionSpider:
                     print(f"[-] 第 {current_page} 页跳过，继续下一页。")
                     current_page += 1
                     continue
+
+                # 追加保存原始 JSON，便于排查接口返回差异
+                try:
+                    self.append_raw_json(res_data, current_page)
+                    print(f"[+] 已追加保存第 {current_page} 页原始 JSON 到 json 目录")
+                except Exception as save_e:
+                    print(f"[!] 保存第 {current_page} 页原始 JSON 失败: {save_e}")
                 
                 # 自动检测最大页码
                 if current_page == start_page:
@@ -284,7 +311,7 @@ class XueqiuDrissionSpider:
                     if any(p.search(title_str) for p in self.filter_patterns):
                         print(f"{progress_info} | \033[33m[过滤] {title_str}\033[0m")
                         continue
-                    print(f"    标题/内容: {title_str}")
+                    print(f"    标题/内容: {title_str[:10]}")
 
                     all_data.append(item)
                     page_data.append(item)
@@ -316,6 +343,15 @@ class XueqiuDrissionSpider:
             if not os.path.exists("data"):
                 os.makedirs("data")
             filename = os.path.join("data", f"xueqiu_full_{self.username}.csv")
+
+            # 每次运行前清空该用户旧的原始 jsonl，避免多次运行结果混在一起
+            json_dir = 'json'
+            if not os.path.exists(json_dir):
+                os.makedirs(json_dir)
+            raw_json_file = os.path.join(json_dir, f'xueqiu_raw_{self.username}.jsonl')
+            if os.path.exists(raw_json_file):
+                os.remove(raw_json_file)
+                print(f"[+] 已清空旧的原始 JSON 文件: {raw_json_file}")
             
             # 加载现有数据用于去重
             existing_ids = set()
