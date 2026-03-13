@@ -7,6 +7,10 @@ import re
 import random
 from datetime import datetime
 from html import unescape
+import warnings
+from urllib3.exceptions import NotOpenSSLWarning
+
+warnings.filterwarnings("ignore", category=NotOpenSSLWarning)
 
 class XueqiuDrissionSpider:
     def __init__(self, username, user_id, xq_a_token=None, type_param=0, filter_regex=None):

@@ -3,6 +3,11 @@ import os
 from xueqiu_drission import XueqiuDrissionSpider
 from analyze_user import analyze_user_level
 
+import warnings
+from urllib3.exceptions import NotOpenSSLWarning
+
+warnings.filterwarnings("ignore", category=NotOpenSSLWarning)
+
 # ================= 配置区 =================
 # 分析配置
 TOP_STOCKS_COUNT = 20  # 关注领域显示的股票数量
