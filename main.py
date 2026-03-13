@@ -8,6 +8,13 @@ from urllib3.exceptions import NotOpenSSLWarning
 
 warnings.filterwarnings("ignore", category=NotOpenSSLWarning)
 
+# 颜色常量
+GREEN = '\033[32m'
+YELLOW = '\033[33m'
+RED = '\033[31m'
+BLUE = '\033[34m'
+RESET = '\033[0m'
+
 # ================= 配置区 =================
 # 分析配置
 TOP_STOCKS_COUNT = 20  # 关注领域显示的股票数量
@@ -50,36 +57,36 @@ def main():
                 start_page = -1 # 仅分析标志
             else:
                 end_page = val
-                print(f"设定抓取前 {end_page} 页数据")
+                print(f"{BLUE}设定抓取前 {end_page} 页数据{RESET}")
         except ValueError:
-            print("[-] 错误: 参数必须是数字")
+            print(f"{RED}[-] 错误: 参数必须是数字{RESET}")
     elif len(sys.argv) >= 5:
         try:
             start_page = int(sys.argv[3])
             end_page = int(sys.argv[4])
-            print(f"设定抓取范围: 第 {start_page} 页 到 第 {end_page} 页")
+            print(f"{BLUE}设定抓取范围: 第 {start_page} 页 到 第 {end_page} 页{RESET}")
         except ValueError:
-            print("[-] 错误: 参数必须是数字")
+            print(f"{RED}[-] 错误: 参数必须是数字{RESET}")
 
     # 构造生成的文件路径
     target_file = os.path.join("data", f"{username}.csv")
 
     # 如果不是仅分析模式 (-1)，则执行爬取
     if start_page != -1:
-        print(f"\n[Step 1] 开始爬取用户 {username}({uid}) 的数据...")
+        print(f"\n{GREEN}[Step 1] 开始爬取用户 {username}({uid}) 的数据...{RESET}")
         type_value = 0 if IS_ORIGINAL_POST else None
         spider = XueqiuDrissionSpider(username, uid, type_param=type_value, filter_regex=FILTER_REGEX)
         spider.run(start_page=start_page, end_page=end_page)
     
     if os.path.exists(target_file):
-        print(f"\n[Step 2] 爬取完成，开始分析数据...")
+        print(f"\n{GREEN}[Step 2] 爬取完成，开始分析数据...{RESET}")
         analyze_user_level(
             target_file, 
             top_stocks_count=TOP_STOCKS_COUNT, 
             top_posts_count=TOP_POSTS_COUNT
         )
     else:
-        print(f"\n[-] 错误: 未能找到生成的数据文件 {target_file}，分析取消。")
+        print(f"\n{RED}[-] 错误: 未能找到生成的数据文件 {target_file}，分析取消。{RESET}")
 
 if __name__ == "__main__":
     main()

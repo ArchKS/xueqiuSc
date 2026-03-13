@@ -7,6 +7,13 @@ import re
 import random
 from datetime import datetime
 from html import unescape
+
+# 颜色常量
+GREEN = '\033[32m'
+YELLOW = '\033[33m'
+RED = '\033[31m'
+BLUE = '\033[34m'
+RESET = '\033[0m'
 import warnings
 from urllib3.exceptions import NotOpenSSLWarning
 
@@ -129,16 +136,16 @@ class XueqiuDrissionSpider:
 
     def setup_cookies(self):
         """设置初始 Cookie 并访问主页过验证"""
-        print("[+] 正在启动浏览器并访问雪球...")
+        print(f"{GREEN}[+] 正在启动浏览器并访问雪球...{RESET}")
         self.page.get("https://xueqiu.com/")
         
         if self.xq_a_token:
-            print("[+] 正在设置 xq_a_token...")
+            print(f"{GREEN}[+] 正在设置 xq_a_token...{RESET}")
             self.page.set.cookies({'name': 'xq_a_token', 'value': self.xq_a_token, 'domain': '.xueqiu.com'})
         
         user_url = f"https://xueqiu.com/u/{self.user_id}"
         self.page.get(user_url)
-        print("[+] 等待 WAF 验证完成...")
+        print(f"{GREEN}[+] 等待 WAF 验证完成...{RESET}")
         time.sleep(5)
 
     def fetch_posts(self, start_page=1, end_page=None, existing_ids=None, filename=None):
@@ -171,28 +178,28 @@ class XueqiuDrissionSpider:
                 self.page.get(f"https://xueqiu.com/u/{self.user_id}")
                 time.sleep(1)
 
-            print(f"正在获取第 {current_page} 页列表...")
+            print(f"{BLUE}正在获取第 {current_page} 页列表...{RESET}")
             
             # 添加重试机制，处理反爬
             max_retries = 3
             res_data = None
             for attempt in range(max_retries):
                 if attempt > 0:
-                    print(f"[-] 重试前使用基本 URL 重新获取...")
+                    print(f"{YELLOW}[-] 重试前使用基本 URL 重新获取...{RESET}")
                     try:
                         self.setup_cookies()
                         # 使用不带可选参数的基本 URL 重试，避免触发 md5__1038 等参数
                         retry_url = f"https://xueqiu.com/v4/statuses/user_timeline.json?page={current_page}&user_id={self.user_id}&count=20"
                         if self.type_param is not None:
                             retry_url += f"&type={self.type_param}"
-                        print(f"[+] 重试请求 URL: {retry_url}")
+                        print(f"{GREEN}[+] 重试请求 URL: {retry_url}{RESET}")
                         self.page.get(retry_url)
                     except Exception as init_e:
-                        print(f"[-] 重新初始化失败: {init_e}")
+                        print(f"{RED}[-] 重新初始化失败: {init_e}{RESET}")
                         continue  # 跳过这次重试
                 
                 else:
-                    print(f"[+] 请求 URL: {api_url}")
+                    print(f"{GREEN}[+] 请求 URL: {api_url}{RESET}")
                     self.page.get(api_url)
                 
                 # 等待潜在的 WAF 跳转完成（处理 md5__1038 等令牌挑战）
@@ -202,7 +209,7 @@ class XueqiuDrissionSpider:
                         if res_data and 'statuses' in res_data:
                             break
                     except Exception as e:
-                        print(f"[-] JSON 解析失败: {e}")
+                        print(f"{RED}[-] JSON 解析失败: {e}{RESET}")
                         res_data = None
                     time.sleep(1)
                 
@@ -211,24 +218,24 @@ class XueqiuDrissionSpider:
                     json_file = os.path.join("json", f"page_{current_page}.json")
                     with open(json_file, 'w', encoding='utf-8') as f:
                         json.dump(res_data, f, ensure_ascii=False, indent=4)
-                    print(f"[+] 已保存第 {current_page} 页 JSON 到 {json_file}")
+                    print(f"{GREEN}[+] 已保存第 {current_page} 页 JSON 到 {json_file}{RESET}")
                     break
                 else:
-                    print(f"[-] 第 {current_page} 页获取失败 (尝试 {attempt+1}/{max_retries})，等待重试...")
+                    print(f"{RED}[-] 第 {current_page} 页获取失败 (尝试 {attempt+1}/{max_retries})，等待重试...{RESET}")
                     time.sleep(5 + attempt * 2)  # 递增等待时间
             
             try:
                 if not res_data or 'statuses' not in res_data:
-                    print(f"[-] 第 {current_page} 页跳过，继续下一页。")
+                    print(f"{RED}[-] 第 {current_page} 页跳过，继续下一页。{RESET}")
                     current_page += 1
                     continue
 
                 # 追加保存原始 JSON，便于排查接口返回差异
                 try:
                     self.append_raw_json(res_data, current_page)
-                    print(f"[+] 已追加保存第 {current_page} 页原始 JSON 到 json 目录")
+                    print(f"{GREEN}[+] 已追加保存第 {current_page} 页原始 JSON 到 json 目录{RESET}")
                 except Exception as save_e:
-                    print(f"[!] 保存第 {current_page} 页原始 JSON 失败: {save_e}")
+                    print(f"{RED}[!] 保存第 {current_page} 页原始 JSON 失败: {save_e}{RESET}")
                 
                 # 自动检测最大页码
                 if current_page == start_page:
@@ -247,7 +254,7 @@ class XueqiuDrissionSpider:
                         # 2. 范围爬取：使用估算值 (每页20条)
                         total_expected = (effective_end_page - start_page + 1) * 20
                         
-                    print(f"[!] 检测到该用户总共有 {actual_max_page} 页，共 {total_expected_count} 条发言")
+                    print(f"{BLUE}[!] 检测到该用户总共有 {actual_max_page} 页，共 {total_expected_count} 条发言{RESET}")
                 
                 statuses = res_data['statuses']
                 if not statuses:
@@ -333,22 +340,22 @@ class XueqiuDrissionSpider:
                     all_data.append(item)
                     page_data.append(item)
                 
-                print(f"\n[+] 第 {current_page} / {max_page_limit} 页处理完成，当前累计 {len(all_data)} 条")
+                print(f"\n{GREEN}[+] 第 {current_page} 页处理完成，当前累计 {len(all_data)} 条{RESET}")
                 
                 # 每页结束后追加到文件
                 if page_data and filename:
                     page_df = pd.DataFrame(page_data)
                     page_df.to_csv(filename, mode='a', header=not os.path.exists(filename), index=False, encoding='utf-8-sig')
-                    print(f"[+] 已追加 {len(page_data)} 条记录到文件")
+                    print(f"{GREEN}[+] 已追加 {len(page_data)} 条记录到文件{RESET}")
                 
                 current_page += 1
                 
             except Exception as e:
-                print(f"[-] 处理第 {current_page} 页时出错: {e}，重新初始化浏览器并跳过该页")
+                print(f"{RED}[-] 处理第 {current_page} 页时出错: {e}，重新初始化浏览器并跳过该页{RESET}")
                 try:
                     self.setup_cookies()
                 except Exception as init_e:
-                    print(f"[-] 重新初始化失败: {init_e}")
+                    print(f"{RED}[-] 重新初始化失败: {init_e}{RESET}")
                 current_page += 1
                 continue
             time.sleep(2)
@@ -368,7 +375,7 @@ class XueqiuDrissionSpider:
             raw_json_file = os.path.join(json_dir, f'xueqiu_raw_{self.username}.jsonl')
             if os.path.exists(raw_json_file):
                 os.remove(raw_json_file)
-                print(f"[+] 已清空旧的原始 JSON 文件: {raw_json_file}")
+                print(f"{GREEN}[+] 已清空旧的原始 JSON 文件: {raw_json_file}{RESET}")
             
             # 加载现有数据用于去重
             existing_ids = set()
@@ -377,9 +384,9 @@ class XueqiuDrissionSpider:
                 try:
                     existing_df = pd.read_csv(filename, encoding='utf-8-sig')
                     existing_ids = set(existing_df['ID'].astype(str).tolist())
-                    print(f"已加载本地数据，包含 {len(existing_ids)} 条记录。")
+                    print(f"{BLUE}已加载本地数据，包含 {len(existing_ids)} 条记录。{RESET}")
                 except Exception as e:
-                    print(f"[!] 读取旧文件失败，将作为新任务开始: {e}")
+                    print(f"{RED}[!] 读取旧文件失败，将作为新任务开始: {e}{RESET}")
 
             self.setup_cookies()
             # 传入已有的 IDs 避免重复爬取详情页，每页追加到文件
@@ -404,11 +411,11 @@ class XueqiuDrissionSpider:
                 df.sort_values(by='发布时间', ascending=False, inplace=True)
                 
                 df.to_csv(filename, index=False, encoding='utf-8-sig')
-                print(f"[!] 任务完成！共保存 {len(df)} 条唯一记录至 {filename}")
+                print(f"{BLUE}[!] 任务完成！共保存 {len(df)} 条唯一记录至 {filename}{RESET}")
             else:
-                print("[-] 未获取到新数据。")
+                print(f"{RED}[-] 未获取到新数据。{RESET}")
         finally:
-            print("[+] 任务结束，正在关闭浏览器...")
+            print(f"{GREEN}[+] 任务结束，正在关闭浏览器...{RESET}")
             self.page.quit()
 
 if __name__ == "__main__":
