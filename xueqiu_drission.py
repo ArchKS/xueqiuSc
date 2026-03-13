@@ -6,6 +6,7 @@ import json
 import re
 import random
 from datetime import datetime
+from html import unescape
 
 class XueqiuDrissionSpider:
     def __init__(self, username, user_id, xq_a_token=None, type_param=0, filter_regex=None):
@@ -37,6 +38,35 @@ class XueqiuDrissionSpider:
         # 替换常见的 HTML 实体
         clean_text = clean_text.replace('&nbsp;', ' ').replace('&lt;', '<').replace('&gt;', '>').replace('&amp;', '&')
         return clean_text.strip()
+
+    def get_page_json(self):
+        """兼容不同平台/不同 Chromium 渲染模式下的 JSON 页面读取。"""
+        # 方案 1：优先使用 DrissionPage 自带 json 属性（Windows 上通常可直接拿到 dict）
+        try:
+            data = self.page.json
+            if isinstance(data, dict):
+                return data
+        except Exception:
+            pass
+
+        # 方案 2：某些环境（当前这台 Mac）会把 JSON 渲染在 <pre> 里
+        try:
+            pre = self.page.ele('tag:pre', timeout=0.5)
+            if pre and pre.text:
+                return json.loads(pre.text)
+        except Exception:
+            pass
+
+        # 方案 3：兜底从页面 HTML 中提取 <pre>...</pre>
+        try:
+            html = self.page.html or ''
+            m = re.search(r'<pre[^>]*>(.*?)</pre>', html, re.S | re.I)
+            if m:
+                return json.loads(unescape(m.group(1)))
+        except Exception:
+            pass
+
+        return None
 
     def fetch_detail(self, url, post_date):
         """访问帖子详情页获取完整正文"""
@@ -136,7 +166,7 @@ class XueqiuDrissionSpider:
                 # 等待潜在的 WAF 跳转完成（处理 md5__1038 等令牌挑战）
                 for _ in range(5):
                     try:
-                        res_data = self.page.json
+                        res_data = self.get_page_json()
                         if res_data and 'statuses' in res_data:
                             break
                     except Exception as e:
