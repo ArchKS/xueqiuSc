@@ -333,7 +333,7 @@ class XueqiuDrissionSpider:
                     all_data.append(item)
                     page_data.append(item)
                 
-                print(f"\n[+] 第 {current_page} 页处理完成，当前累计 {len(all_data)} 条")
+                print(f"\n[+] 第 {current_page} / {max_page_limit} 页处理完成，当前累计 {len(all_data)} 条")
                 
                 # 每页结束后追加到文件
                 if page_data and filename:
