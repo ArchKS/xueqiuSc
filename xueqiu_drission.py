@@ -142,6 +142,10 @@ class XueqiuDrissionSpider:
         all_data = []
         job_start = time.time()
         
+        # 确保 json 目录存在
+        if not os.path.exists("json"):
+            os.makedirs("json")
+        
         if existing_ids is None:
             existing_ids = set()
             
@@ -175,12 +179,16 @@ class XueqiuDrissionSpider:
                         self.setup_cookies()
                         # 使用不带可选参数的基本 URL 重试，避免触发 md5__1038 等参数
                         retry_url = f"https://xueqiu.com/v4/statuses/user_timeline.json?page={current_page}&user_id={self.user_id}&count=20"
+                        if self.type_param is not None:
+                            retry_url += f"&type={self.type_param}"
+                        print(f"[+] 重试请求 URL: {retry_url}")
                         self.page.get(retry_url)
                     except Exception as init_e:
                         print(f"[-] 重新初始化失败: {init_e}")
                         continue  # 跳过这次重试
                 
                 else:
+                    print(f"[+] 请求 URL: {api_url}")
                     self.page.get(api_url)
                 
                 # 等待潜在的 WAF 跳转完成（处理 md5__1038 等令牌挑战）
@@ -195,6 +203,11 @@ class XueqiuDrissionSpider:
                     time.sleep(1)
                 
                 if res_data and 'statuses' in res_data:
+                    # 保存 JSON 到分页文件
+                    json_file = os.path.join("json", f"page_{current_page}.json")
+                    with open(json_file, 'w', encoding='utf-8') as f:
+                        json.dump(res_data, f, ensure_ascii=False, indent=4)
+                    print(f"[+] 已保存第 {current_page} 页 JSON 到 {json_file}")
                     break
                 else:
                     print(f"[-] 第 {current_page} 页获取失败 (尝试 {attempt+1}/{max_retries})，等待重试...")
