@@ -7,6 +7,14 @@ from analyze_user import analyze_user_level
 # 分析配置
 TOP_STOCKS_COUNT = 20  # 关注领域显示的股票数量
 TOP_POSTS_COUNT = 10   # 最火爆发言显示的条数
+# 爬取配置
+IS_ORIGINAL_POST = True  # 是否原发，True 表示只抓取原发 (type=0)，False 表示包含转发 (不添加 type 参数)
+# 正则过滤列表：匹配到则不保存该条记录（用于过滤系统通知类型内容）
+# 注意：每条正则会应用于帖子标题/正文前缀，不区分大小写
+FILTER_REGEX = [
+    r"^我刚刚关注了股票",
+    r"^我刚刚调整了雪球组合",
+]
 # ==========================================
 
 def main():
@@ -37,14 +45,14 @@ def main():
                 start_page = -1 # 仅分析标志
             else:
                 end_page = val
-                print(f"[*] 设定抓取前 {end_page} 页数据")
+                print(f"设定抓取前 {end_page} 页数据")
         except ValueError:
             print("[-] 错误: 参数必须是数字")
     elif len(sys.argv) >= 5:
         try:
             start_page = int(sys.argv[3])
             end_page = int(sys.argv[4])
-            print(f"[*] 设定抓取范围: 第 {start_page} 页 到 第 {end_page} 页")
+            print(f"设定抓取范围: 第 {start_page} 页 到 第 {end_page} 页")
         except ValueError:
             print("[-] 错误: 参数必须是数字")
 
@@ -54,7 +62,8 @@ def main():
     # 如果不是仅分析模式 (-1)，则执行爬取
     if start_page != -1:
         print(f"\n[Step 1] 开始爬取用户 {username}({uid}) 的数据...")
-        spider = XueqiuDrissionSpider(username, uid)
+        type_value = 0 if IS_ORIGINAL_POST else None
+        spider = XueqiuDrissionSpider(username, uid, type_param=type_value, filter_regex=FILTER_REGEX)
         spider.run(start_page=start_page, end_page=end_page)
     
     if os.path.exists(target_file):

@@ -8,10 +8,16 @@ import random
 from datetime import datetime
 
 class XueqiuDrissionSpider:
-    def __init__(self, username, user_id, xq_a_token=None):
+    def __init__(self, username, user_id, xq_a_token=None, type_param=0, filter_regex=None):
         self.username = username
         self.user_id = user_id
         self.xq_a_token = xq_a_token  # 保留参数以防需要，但不再使用
+        self.type_param = type_param  # 0: 原发, None: 包含转发
+        # 过滤规则（正则），匹配则不保存该条发言
+        if filter_regex:
+            self.filter_patterns = [re.compile(p, re.I) for p in filter_regex]
+        else:
+            self.filter_patterns = []
         
         # 性能优化配置
         from DrissionPage import ChromiumOptions
@@ -71,7 +77,6 @@ class XueqiuDrissionSpider:
         """设置初始 Cookie 并访问主页过验证"""
         print("[+] 正在启动浏览器并访问雪球...")
         self.page.get("https://xueqiu.com/")
-        self.page.get("https://xueqiu.com/")
         
         if self.xq_a_token:
             print("[+] 正在设置 xq_a_token...")
@@ -82,8 +87,8 @@ class XueqiuDrissionSpider:
         print("[+] 等待 WAF 验证完成...")
         time.sleep(5)
 
-    def fetch_posts(self, start_page=1, end_page=None, existing_ids=None):
-        """抓取用户帖子列表并深入抓取正文"""
+    def fetch_posts(self, start_page=1, end_page=None, existing_ids=None, filename=None):
+        """抓取用户帖子列表并深入抓取正文，每页结束后追加到文件"""
         all_data = []
         job_start = time.time()
         
@@ -98,6 +103,8 @@ class XueqiuDrissionSpider:
         while current_page <= max_page_limit:
             # 构造 URL，如果不是第一页则带上 max_id (雪球更推荐的分页方式，更稳定)
             api_url = f"https://xueqiu.com/v4/statuses/user_timeline.json?page={current_page}&user_id={self.user_id}&count=20"
+            if self.type_param is not None:
+                api_url += f"&type={self.type_param}"
             if last_id and current_page > 1:
                 api_url += f"&max_id={last_id}"
             
@@ -106,21 +113,48 @@ class XueqiuDrissionSpider:
                 self.page.get(f"https://xueqiu.com/u/{self.user_id}")
                 time.sleep(1)
 
-            print(f"[*] 正在获取第 {current_page} 页列表...")
-            self.page.get(api_url)
+            print(f"正在获取第 {current_page} 页列表...")
             
-            # 等待潜在的 WAF 跳转完成（处理 md5__1038 等令牌挑战）
+            # 添加重试机制，处理反爬
+            max_retries = 3
             res_data = None
-            for _ in range(5):
-                res_data = self.page.json
+            for attempt in range(max_retries):
+                if attempt > 0:
+                    print(f"[-] 重试前使用基本 URL 重新获取...")
+                    try:
+                        self.setup_cookies()
+                        # 使用不带可选参数的基本 URL 重试，避免触发 md5__1038 等参数
+                        retry_url = f"https://xueqiu.com/v4/statuses/user_timeline.json?page={current_page}&user_id={self.user_id}&count=20"
+                        self.page.get(retry_url)
+                    except Exception as init_e:
+                        print(f"[-] 重新初始化失败: {init_e}")
+                        continue  # 跳过这次重试
+                
+                else:
+                    self.page.get(api_url)
+                
+                # 等待潜在的 WAF 跳转完成（处理 md5__1038 等令牌挑战）
+                for _ in range(5):
+                    try:
+                        res_data = self.page.json
+                        if res_data and 'statuses' in res_data:
+                            break
+                    except Exception as e:
+                        print(f"[-] JSON 解析失败: {e}")
+                        res_data = None
+                    time.sleep(1)
+                
                 if res_data and 'statuses' in res_data:
                     break
-                time.sleep(1)
+                else:
+                    print(f"[-] 第 {current_page} 页获取失败 (尝试 {attempt+1}/{max_retries})，等待重试...")
+                    time.sleep(5 + attempt * 2)  # 递增等待时间
             
             try:
                 if not res_data or 'statuses' not in res_data:
-                    print(f"[-] 第 {current_page} 页未获取到列表。内容可能是 WAF 验证页。")
-                    break
+                    print(f"[-] 第 {current_page} 页跳过，继续下一页。")
+                    current_page += 1
+                    continue
                 
                 # 自动检测最大页码
                 if current_page == start_page:
@@ -150,6 +184,7 @@ class XueqiuDrissionSpider:
                     last_id = statuses[-1].get('id')
                 
                 total_in_page = len(statuses)
+                page_data = []  # 该页数据
                 for idx, status in enumerate(statuses, 1):
                     post_id = str(status.get('id'))
                     post_date = datetime.fromtimestamp(status.get('created_at') / 1000).strftime('%Y-%m-%d %H:%M:%S') if status.get('created_at') else '未知时间'
@@ -167,7 +202,7 @@ class XueqiuDrissionSpider:
                     else:
                         time_str = "计算中..."
                     
-                    progress_info = f"[*] [{idx}/{total_in_page}] (总:{items_done}/{total_expected}) [{time_str}] {post_date}"
+                    progress_info = f"[{idx}/{total_in_page}] (总:{items_done}/{total_expected}) [{time_str}] {post_date}"
 
                     if post_id in existing_ids:
                         print(f"{progress_info} | \033[33m[跳过] 已存在于本地\033[0m")
@@ -214,17 +249,35 @@ class XueqiuDrissionSpider:
                         post_duration = time.time() - post_process_start
                         print(f"{progress_info} | {status_msg} | 耗时:{post_duration:.2f}s")
                     
+                    # 标题/内容打印与正则过滤
+                    title_str = item['摘要'].strip() if item['摘要'] else item['正文'][:10].strip()
+                    if any(p.search(title_str) for p in self.filter_patterns):
+                        print(f"{progress_info} | \033[33m[过滤] {title_str}\033[0m")
+                        continue
+                    print(f"    标题/内容: {title_str}")
+
                     all_data.append(item)
+                    page_data.append(item)
                 
                 print(f"\n[+] 第 {current_page} 页处理完成，当前累计 {len(all_data)} 条")
+                
+                # 每页结束后追加到文件
+                if page_data and filename:
+                    page_df = pd.DataFrame(page_data)
+                    page_df.to_csv(filename, mode='a', header=not os.path.exists(filename), index=False, encoding='utf-8-sig')
+                    print(f"[+] 已追加 {len(page_data)} 条记录到文件")
+                
                 current_page += 1
                 
             except Exception as e:
-                print(f"[-] 处理第 {current_page} 页时出错: {e}")
-                break
-                
+                print(f"[-] 处理第 {current_page} 页时出错: {e}，重新初始化浏览器并跳过该页")
+                try:
+                    self.setup_cookies()
+                except Exception as init_e:
+                    print(f"[-] 重新初始化失败: {init_e}")
+                current_page += 1
+                continue
             time.sleep(2)
-            
         return all_data
 
     def run(self, start_page=1, end_page=None):
@@ -241,16 +294,16 @@ class XueqiuDrissionSpider:
                 try:
                     existing_df = pd.read_csv(filename, encoding='utf-8-sig')
                     existing_ids = set(existing_df['ID'].astype(str).tolist())
-                    print(f"[*] 已加载本地数据，包含 {len(existing_ids)} 条记录。")
+                    print(f"已加载本地数据，包含 {len(existing_ids)} 条记录。")
                 except Exception as e:
                     print(f"[!] 读取旧文件失败，将作为新任务开始: {e}")
 
             self.setup_cookies()
-            # 传入已有的 IDs 避免重复爬取详情页
-            data = self.fetch_posts(start_page, end_page, existing_ids)
+            # 传入已有的 IDs 避免重复爬取详情页，每页追加到文件
+            self.fetch_posts(start_page, end_page, existing_ids, filename)
             
-            if data:
-                new_df = pd.DataFrame(data)
+            if os.path.exists(filename):
+                new_df = pd.read_csv(filename, encoding='utf-8-sig')
                 # 合并新旧数据
                 if not existing_df.empty:
                     df = pd.concat([existing_df, new_df], ignore_index=True)

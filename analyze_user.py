@@ -113,7 +113,7 @@ if __name__ == "__main__":
         USERNAME = "KeepSlowly"
         target_file = os.path.join("data", f"xueqiu_full_{USERNAME}.csv")
     
-    print(f"[*] 正在分析文件: {target_file}")
+    print(f"正在分析文件: {target_file}")
     
     # 默认配置
     analyze_user_level(target_file, top_stocks_count=8, top_posts_count=5)

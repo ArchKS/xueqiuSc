@@ -36,7 +36,7 @@ python -c "from DrissionPage import ChromiumPage; ChromiumPage()"
 或者直接运行项目的 main.py，它会在首次执行时自动下载：
 
 ```bash
-python main.py <用户名> <用户ID>
+python main.py <用户名> <用户ID> 页面开始位置
 ```
 
 #### 3. 手动指定 Chrome 路径（可选）
@@ -87,7 +87,7 @@ self.page = ChromiumPage(addr=r'C:\Program Files\Google\Chrome\Application\chrom
 
 ```bash
 # 爬取全部页码并分析
-python main.py KeepSlowly 2287364713
+python main.py 我無形 4925086612
 
 # 爬取指定页码并分析 (例如爬取前 2 页)
 python main.py KeepSlowly 2287364713 2

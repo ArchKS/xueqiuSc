@@ -4,13 +4,13 @@
 		{
 			"label": "Run Xueqiu Spider",
 			"type": "shell",
-			"command": "E:/xueqiuSc/.venv/Scripts/python.exe e:/xueqiuSc/xueqiu_spider.py",
+			"command": "C:/python314/python.exe e:/xueqiuSc/xueqiu_spider.py",
 			"group": "build"
 		},
 		{
 			"label": "Run Drission Spider",
 			"type": "shell",
-			"command": "E:/xueqiuSc/.venv/Scripts/python.exe e:/xueqiuSc/xueqiu_drission.py",
+			"command": "C:/python314/python.exe e:/xueqiuSc/xueqiu_drission.py",
 			"group": "test"
 		}
 	]
