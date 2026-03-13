@@ -1,3 +1,6 @@
+import warnings
+warnings.simplefilter("ignore")
+
 from DrissionPage import ChromiumPage
 import time
 import os
@@ -14,10 +17,6 @@ YELLOW = '\033[33m'
 RED = '\033[31m'
 BLUE = '\033[34m'
 RESET = '\033[0m'
-import warnings
-from urllib3.exceptions import NotOpenSSLWarning
-
-warnings.filterwarnings("ignore", category=NotOpenSSLWarning)
 
 class XueqiuDrissionSpider:
     def __init__(self, username, user_id, xq_a_token=None, type_param=0, filter_regex=None):

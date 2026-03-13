@@ -1,12 +1,10 @@
+import warnings
+warnings.simplefilter("ignore")
+
 import sys
 import os
 from xueqiu_drission import XueqiuDrissionSpider
 from analyze_user import analyze_user_level
-
-import warnings
-from urllib3.exceptions import NotOpenSSLWarning
-
-warnings.filterwarnings("ignore", category=NotOpenSSLWarning)
 
 # 颜色常量
 GREEN = '\033[32m'
