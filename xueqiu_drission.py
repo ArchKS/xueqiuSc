@@ -161,6 +161,7 @@ class XueqiuDrissionSpider:
             
         current_page = start_page
         max_page_limit = end_page if end_page else 9999
+        actual_max_page = 0
         total_expected = 0
         last_id = None # 用于 max_id 分页
 
@@ -296,11 +297,12 @@ class XueqiuDrissionSpider:
                     item = {
                         'ID': status.get('id'),
                         '发布时间': post_date,
-                        '摘要': self.clean_html(raw_description),
                         '点赞数': status.get('like_count'),
                         '评论数': status.get('reply_count'),
                         '转发数': status.get('retweet_count'),
-                        '链接': f"https://xueqiu.com{status.get('target')}"
+                        '页码': f"{current_page}/{actual_max_page}",
+                        '链接': f"https://xueqiu.com{status.get('target')}",
+                        '摘要': self.clean_html(raw_description),
                     }
                     
                     # 记录单篇帖子开始处理的时间
@@ -344,6 +346,9 @@ class XueqiuDrissionSpider:
                 # 每页结束后追加到文件
                 if page_data and filename:
                     page_df = pd.DataFrame(page_data)
+                    # 确保列顺序一致
+                    cols_to_save = ['ID', '发布时间', '点赞数', '评论数', '转发数', '页码', '链接', '摘要', '正文']
+                    page_df = page_df[[c for c in cols_to_save if c in page_df.columns]]
                     page_df.to_csv(filename, mode='a', header=not os.path.exists(filename), index=False, encoding='utf-8-sig')
                     print(f"{GREEN}[+] 已追加 {len(page_data)} 条记录到文件{RESET}")
                 
@@ -382,6 +387,14 @@ class XueqiuDrissionSpider:
             if os.path.exists(filename):
                 try:
                     existing_df = pd.read_csv(filename, encoding='utf-8-sig')
+                    # 如果缺少页码列，则补充（兼容旧版本数据）
+                    if '页码' not in existing_df.columns:
+                        # 在转发数后面插入页码列
+                        idx = existing_df.columns.get_loc('转发数') + 1 if '转发数' in existing_df.columns else len(existing_df.columns)
+                        existing_df.insert(idx, '页码', '1/1')
+                        existing_df.to_csv(filename, index=False, encoding='utf-8-sig')
+                        print(f"{YELLOW}[!] 检测到旧版本数据，已自动补充 '页码' 列。{RESET}")
+                    
                     existing_ids = set(existing_df['ID'].astype(str).tolist())
                     print(f"{BLUE}已加载本地数据，包含 {len(existing_ids)} 条记录。{RESET}")
                 except Exception as e:
@@ -404,7 +417,7 @@ class XueqiuDrissionSpider:
                 df.drop_duplicates(subset=['ID'], keep='last', inplace=True)
                 
                 # 重新排序字段
-                cols = ['ID', '发布时间', '点赞数', '评论数', '转发数', '链接', '摘要', '正文']
+                cols = ['ID', '发布时间', '点赞数', '评论数', '转发数', '页码', '链接', '摘要', '正文']
                 df = df[cols]
                 # 按时间排序（可选，方便查看）
                 df.sort_values(by='发布时间', ascending=False, inplace=True)
