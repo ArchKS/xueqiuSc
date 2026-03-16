@@ -275,7 +275,11 @@ class XueqiuDrissionSpider:
                     elapsed = time.time() - job_start
                     if items_done > 1:
                         avg_time = elapsed / items_done
-                        remaining_tasks = max(0, ((max_page_limit - start_page + 1) * 20) - items_done)
+                        # 修正剩余任务估算：基于当前页到结束页的剩余项
+                        remaining_pages = max(0, max_page_limit - current_page)
+                        remaining_items_in_current_page = total_in_page - idx
+                        remaining_tasks = (remaining_pages * 20) + remaining_items_in_current_page
+                        
                         eta_seconds = remaining_tasks * avg_time
                         m, s = divmod(int(elapsed), 60)
                         rem_m, rem_s = divmod(int(eta_seconds), 60)
@@ -283,7 +287,8 @@ class XueqiuDrissionSpider:
                     else:
                         time_str = "计算中..."
                     
-                    progress_info = f"[{idx}/{total_in_page}] (总:{items_done}/{total_expected}) [{time_str}] {post_date}"
+                    # 在输出中明确显示当前页码
+                    progress_info = f"[P{current_page} {idx}/{total_in_page}] (总:{items_done}/{total_expected}) [{time_str}] {post_date}"
 
                     if post_id in existing_ids:
                         print(f"{progress_info} | \033[33m[跳过] 已存在于本地\033[0m")
@@ -383,47 +388,47 @@ class XueqiuDrissionSpider:
             
             # 加载现有数据用于去重
             existing_ids = set()
-            existing_df = pd.DataFrame()
             if os.path.exists(filename):
                 try:
-                    existing_df = pd.read_csv(filename, encoding='utf-8-sig')
-                    # 如果缺少页码列，则补充（兼容旧版本数据）
-                    if '页码' not in existing_df.columns:
-                        # 在转发数后面插入页码列
+                    # 先读取现有列名
+                    temp_df = pd.read_csv(filename, encoding='utf-8-sig', nrows=0)
+                    # 如果缺少页码列，则需要全量读取并补充，否则后续追加会错位
+                    if '页码' not in temp_df.columns:
+                        existing_df = pd.read_csv(filename, encoding='utf-8-sig')
                         idx = existing_df.columns.get_loc('转发数') + 1 if '转发数' in existing_df.columns else len(existing_df.columns)
-                        existing_df.insert(idx, '页码', '1/1')
+                        existing_df.insert(idx, '页码', '旧数据/未知')
                         existing_df.to_csv(filename, index=False, encoding='utf-8-sig')
-                        print(f"{YELLOW}[!] 检测到旧版本数据，已自动补充 '页码' 列。{RESET}")
+                        print(f"{YELLOW}[!] 已为旧数据补充 '页码' 列。{RESET}")
+                        existing_ids = set(existing_df['ID'].astype(str).tolist())
+                    else:
+                        # 仅读取 ID 列用于去重，节省内存
+                        id_df = pd.read_csv(filename, encoding='utf-8-sig', usecols=['ID'])
+                        existing_ids = set(id_df['ID'].astype(str).tolist())
                     
-                    existing_ids = set(existing_df['ID'].astype(str).tolist())
                     print(f"{BLUE}已加载本地数据，包含 {len(existing_ids)} 条记录。{RESET}")
                 except Exception as e:
-                    print(f"{RED}[!] 读取旧文件失败，将作为新任务开始: {e}{RESET}")
+                    print(f"{RED}[!] 读取旧文件失败: {e}{RESET}")
 
             self.setup_cookies()
             # 传入已有的 IDs 避免重复爬取详情页，每页追加到文件
             self.fetch_posts(start_page, end_page, existing_ids, filename)
             
             if os.path.exists(filename):
-                new_df = pd.read_csv(filename, encoding='utf-8-sig')
-                # 合并新旧数据
-                if not existing_df.empty:
-                    df = pd.concat([existing_df, new_df], ignore_index=True)
-                else:
-                    df = new_df
+                # 最终去重与排序：fetch_posts 已经把新旧数据都存进去了
+                df = pd.read_csv(filename, encoding='utf-8-sig')
                 
-                # 根据 ID 去重，保留最新的记录（通常新爬取的在前或后，这里统一去重）
+                # 根据 ID 去重，保留最新的记录
                 df['ID'] = df['ID'].astype(str)
                 df.drop_duplicates(subset=['ID'], keep='last', inplace=True)
                 
                 # 重新排序字段
                 cols = ['ID', '发布时间', '点赞数', '评论数', '转发数', '页码', '链接', '摘要', '正文']
-                df = df[cols]
-                # 按时间排序（可选，方便查看）
+                df = df[[c for c in cols if c in df.columns]]
+                # 按时间排序
                 df.sort_values(by='发布时间', ascending=False, inplace=True)
                 
                 df.to_csv(filename, index=False, encoding='utf-8-sig')
-                print(f"{BLUE}[!] 任务完成！共保存 {len(df)} 条唯一记录至 {filename}{RESET}")
+                print(f"{BLUE}[!] 任务完成！当前共 {len(df)} 条唯一记录至 {filename}{RESET}")
             else:
                 print(f"{RED}[-] 未获取到新数据。{RESET}")
         finally:
