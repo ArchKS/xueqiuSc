@@ -1,3 +1,6 @@
+import warnings
+warnings.simplefilter("ignore")
+
 from DrissionPage import ChromiumPage
 import time
 import os
@@ -14,10 +17,6 @@ YELLOW = '\033[33m'
 RED = '\033[31m'
 BLUE = '\033[34m'
 RESET = '\033[0m'
-import warnings
-from urllib3.exceptions import NotOpenSSLWarning
-
-warnings.filterwarnings("ignore", category=NotOpenSSLWarning)
 
 class XueqiuDrissionSpider:
     def __init__(self, username, user_id, xq_a_token=None, type_param=0, filter_regex=None):
@@ -170,8 +169,8 @@ class XueqiuDrissionSpider:
             api_url = f"https://xueqiu.com/v4/statuses/user_timeline.json?page={current_page}&user_id={self.user_id}&count=20"
             if self.type_param is not None:
                 api_url += f"&type={self.type_param}"
-            # if last_id and current_page > 1:
-            #     api_url += f"&max_id={last_id}"
+            if last_id and current_page > 1:
+                api_url += f"&max_id={last_id}"
             
             # 关键修复：先回到个人主页建立 Referer 上下文，防止直接跳转 API 触发 WAF 令牌挑战
             if self.page.url != f"https://xueqiu.com/u/{self.user_id}":

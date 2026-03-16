@@ -64,7 +64,7 @@ def analyze_user_level(file_path, top_stocks_count=5, top_posts_count=3):
     print("\n" + "═" * 60)
     print(f" {header.center(58)} ")
     print("═" * 60)
-    print(f"  � 分析范围: {time_range_str} ({days_diff}天)")
+    print(f"  🌟 分析范围: {time_range_str} ({days_diff}天)")
     print(f"  📝 总发言数: {len(df)} 篇 (约 {post_frequency:.2f} 篇/天)")
     print("-" * 60)
 

@@ -1,12 +1,10 @@
+import warnings
+warnings.simplefilter("ignore")
+
 import sys
 import os
 from xueqiu_drission import XueqiuDrissionSpider
 from analyze_user import analyze_user_level
-
-import warnings
-from urllib3.exceptions import NotOpenSSLWarning
-
-warnings.filterwarnings("ignore", category=NotOpenSSLWarning)
 
 # 颜色常量
 GREEN = '\033[32m'
@@ -20,7 +18,8 @@ RESET = '\033[0m'
 TOP_STOCKS_COUNT = 20  # 关注领域显示的股票数量
 TOP_POSTS_COUNT = 10   # 最火爆发言显示的条数
 # 爬取配置
-IS_ORIGINAL_POST = False  # 是否原发，True 表示只抓取原发 (type=0)，False 表示包含转发 (不添加 type 参数)
+IS_ORIGINAL_POST = True  
+# 是否原发，True 表示只抓取原发 (type=0)，False 表示包含转发 (不添加 type 参数)
 # 正则过滤列表：匹配到则不保存该条记录（用于过滤系统通知类型内容）
 # 注意：每条正则会应用于帖子标题/正文前缀，不区分大小写
 FILTER_REGEX = [
