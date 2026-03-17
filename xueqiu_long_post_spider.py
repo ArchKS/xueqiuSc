@@ -10,15 +10,19 @@ import re
 import random
 from datetime import datetime
 from html import unescape
+import colorama
+
+# 初始化 colorama 以支持 Windows 颜色输出
+colorama.init(autoreset=True)
 
 # 颜色常量
-GREEN = '\033[32m'
-YELLOW = '\033[33m'
-RED = '\033[31m'
-BLUE = '\033[34m'
-RESET = '\033[0m'
+GREEN = colorama.Fore.GREEN
+YELLOW = colorama.Fore.YELLOW
+RED = colorama.Fore.RED
+BLUE = colorama.Fore.BLUE
+RESET = colorama.Style.RESET_ALL
 
-class XueqiuDrissionSpider:
+class XueqiuLongPostSpider:
     def __init__(self, username, user_id, xq_a_token=None, type_param=0, filter_regex=None):
         self.username = username
         self.user_id = user_id
@@ -48,6 +52,72 @@ class XueqiuDrissionSpider:
         # 替换常见的 HTML 实体
         clean_text = clean_text.replace('&nbsp;', ' ').replace('&lt;', '<').replace('&gt;', '>').replace('&amp;', '&')
         return clean_text.strip()
+
+    def format_date(self, date_str):
+        """统一日期格式为 YYYY-MM-DD HH:mm，并补齐缺失的年份"""
+        if not date_str:
+            return datetime.now().strftime('%Y-%m-%d %H:%M')
+        
+        # 彻底清理：移除“修改于”、“· 来自...”等干扰词
+        clean_str = re.sub(r'修改于', '', str(date_str))
+        clean_str = re.sub(r'·.*$', '', clean_str).strip()
+        
+        from datetime import datetime, timedelta
+        now = datetime.now()
+        current_year = now.year
+
+        try:
+            # 1. 处理“n分钟前” / “n小时前”
+            if '分钟前' in clean_str:
+                m = int(re.search(r'\d+', clean_str).group())
+                return (now - timedelta(minutes=m)).strftime('%Y-%m-%d %H:%M')
+            if '小时前' in clean_str:
+                h = int(re.search(r'\d+', clean_str).group())
+                return (now - timedelta(hours=h)).strftime('%Y-%m-%d %H:%M')
+            
+            # 2. 处理“今天 HH:mm” / “昨天 HH:mm”
+            if '今天' in clean_str:
+                time_match = re.search(r'\d{2}:\d{2}', clean_str)
+                time_part = time_match.group() if time_match else now.strftime('%H:%M')
+                return f"{now.strftime('%Y-%m-%d')} {time_part}"
+            if '昨天' in clean_str:
+                time_match = re.search(r'\d{2}:\d{2}', clean_str)
+                time_part = time_match.group() if time_match else now.strftime('%H:%M')
+                yesterday = (now - timedelta(days=1)).strftime('%Y-%m-%d')
+                return f"{yesterday} {time_part}"
+
+            # 3. 提取标准的日期时间部分
+            # 优先匹配全量格式 YYYY-MM-DD HH:mm
+            m_full = re.search(r'(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})', clean_str)
+            if m_full:
+                return f"{m_full.group(1)} {m_full.group(2)}"
+            
+            # 匹配短格式 MM-DD HH:mm
+            m_short = re.search(r'(\d{2}-\d{2})\s+(\d{2}:\d{2})', clean_str)
+            if m_short:
+                date_part = m_short.group(1) # MM-DD
+                time_part = m_short.group(2) # HH:mm
+                month = int(date_part.split('-')[0])
+                # 如果月份大于当前月份，推定为去年
+                year = current_year if month <= now.month else current_year - 1
+                return f"{year}-{date_part} {time_part}"
+            
+            # 匹配纯日期 YYYY-MM-DD
+            m_date = re.search(r'(\d{4}-\d{2}-\d{2})', clean_str)
+            if m_date:
+                return f"{m_date.group(1)} 00:00"
+
+            # 兜底：如果只是 MM-DD
+            m_only_date = re.search(r'(\d{2}-\d{2})', clean_str)
+            if m_only_date:
+                date_part = m_only_date.group(1)
+                month = int(date_part.split('-')[0])
+                year = current_year if month <= now.month else current_year - 1
+                return f"{year}-{date_part} 00:00"
+
+            return clean_str
+        except Exception:
+            return clean_str
 
     def get_page_json(self):
         """兼容不同平台/不同 Chromium 渲染模式下的 JSON 页面读取。"""
@@ -268,7 +338,7 @@ class XueqiuDrissionSpider:
                 page_data = []  # 该页数据
                 for idx, status in enumerate(statuses, 1):
                     post_id = str(status.get('id'))
-                    post_date = datetime.fromtimestamp(status.get('created_at') / 1000).strftime('%Y-%m-%d %H:%M:%S') if status.get('created_at') else '未知时间'
+                    post_date = datetime.fromtimestamp(status.get('created_at') / 1000).strftime('%Y-%m-%d %H:%M') if status.get('created_at') else '未知时间'
                     
                     # 进度字符串
                     items_done = len(all_data) + 1 # 包含当前这一个
@@ -288,10 +358,10 @@ class XueqiuDrissionSpider:
                         time_str = "计算中..."
                     
                     # 在输出中明确显示当前页码
-                    progress_info = f"[P{current_page} {idx}/{total_in_page}] (总:{items_done}/{total_expected}) [{time_str}] {post_date}"
+                    progress_info = f"[P{current_page}/{actual_max_page} {idx:2d}/{total_in_page:2d}] (总:{items_done:3d})"
 
                     if post_id in existing_ids:
-                        print(f"{progress_info} | \033[33m[跳过] 已存在于本地\033[0m")
+                        print(f"{progress_info} | \033[33m[跳过] {post_date} | 已存在于本地\033[0m")
                         continue
                         
                     # 获取 API 里的原始正文
@@ -300,11 +370,11 @@ class XueqiuDrissionSpider:
                     can_expand = status.get('expend', False)
                     
                     item = {
-                        'ID': status.get('id'),
-                        '发布时间': post_date,
-                        '点赞数': status.get('like_count'),
-                        '评论数': status.get('reply_count'),
-                        '转发数': status.get('retweet_count'),
+                        'ID': str(status.get('id')),
+                        '发布时间': self.format_date(post_date),
+                        '点赞数': status.get('like_count') or 0,
+                        '评论数': status.get('reply_count') or 0,
+                        '转发数': status.get('retweet_count') or 0,
                         '页码': f"{current_page}/{actual_max_page}",
                         '链接': f"https://xueqiu.com{status.get('target')}",
                         '摘要': self.clean_html(raw_description),
@@ -328,13 +398,11 @@ class XueqiuDrissionSpider:
                         time.sleep(actual_sleep)
                         # 计算单篇总耗时
                         post_duration = time.time() - post_process_start
-                        print(f"{progress_info} | \033[34m[抓取] {content_len}字 | 耗时:{post_duration:.1f}s\033[0m")
+                        print(f"{progress_info} | \033[34m[抓取] {content_len:5d}字 | {post_date} | ID:{post_id}\033[0m")
                     else:
                         item['正文'] = self.clean_html(raw_text)
                         status_msg = "\033[32m[完整] 直接获取\033[0m" if not can_expand else "\033[32m[限制] 无链接跳过\033[0m"
-                        # 计算单篇总耗时
-                        post_duration = time.time() - post_process_start
-                        print(f"{progress_info} | {status_msg} | 耗时:{post_duration:.2f}s")
+                        print(f"{progress_info} | {status_msg} | {post_date} | ID:{post_id}")
                     
                     # 标题/内容打印与正则过滤
                     title_str = item['摘要'].strip() if item['摘要'] else item['正文'][:10].strip()
@@ -421,6 +489,11 @@ class XueqiuDrissionSpider:
                 df['ID'] = df['ID'].astype(str)
                 df.drop_duplicates(subset=['ID'], keep='last', inplace=True)
                 
+                # 统一日期格式
+                if '发布时间' in df.columns:
+                    print(f"{BLUE}[+] 正在统一日期格式...{RESET}")
+                    df['发布时间'] = df['发布时间'].apply(self.format_date)
+                
                 # 重新排序字段
                 cols = ['ID', '发布时间', '点赞数', '评论数', '转发数', '页码', '链接', '摘要', '正文']
                 df = df[[c for c in cols if c in df.columns]]
@@ -440,7 +513,7 @@ if __name__ == "__main__":
     USER_ID = "2287364713"
     # XQ_A_TOKEN 不再需要，依赖 run.py 中的浏览器登录会话
     
-    spider = XueqiuDrissionSpider(USERNAME, USER_ID)
+    spider = XueqiuLongPostSpider(USERNAME, USER_ID)
     # 不传参数默认爬取全部页码
     spider.run() 
 

@@ -19,7 +19,7 @@ def analyze_user_level(file_path, top_stocks_count=5, top_posts_count=3):
     df['点赞数'] = pd.to_numeric(df['点赞数'], errors='coerce').fillna(0)
     df['评论数'] = pd.to_numeric(df['评论数'], errors='coerce').fillna(0)
     df['转发数'] = pd.to_numeric(df['转发数'], errors='coerce').fillna(0)
-    df['正文'] = df['正文'].astype(str)
+    df['正文'] = df['正文'].fillna('').astype(str)
     df['发布时间'] = pd.to_datetime(df['发布时间'], errors='coerce')
     
     # 0. 时间范围统计
@@ -60,7 +60,7 @@ def analyze_user_level(file_path, top_stocks_count=5, top_posts_count=3):
     stock_counts = pd.Series(all_stocks).value_counts().head(top_stocks_count)
 
     # 5. 输出结果报告
-    header = f" 📊 USER ANALYSIS REPORT: {os.path.basename(file_path)} "
+    header = f" 📊 雪球短贴分析报告: {os.path.basename(file_path)} "
     print("\n" + "═" * 60)
     print(f" {header.center(58)} ")
     print("═" * 60)

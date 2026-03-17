@@ -1,9 +1,24 @@
+# ================= 配置区 =================
+# 分析配置
+TOP_STOCKS_COUNT = 20  # 关注领域显示的股票数量
+TOP_POSTS_COUNT = 3   # 最火爆发言显示的条数
+
+# 爬取配置
+# TYPE_PARAM 控制抓取类型与使用的引擎：
+# None : 抓取所有短贴（包含转发），使用 UI 模式引擎 (XueqiuShortPostSpider)
+# 0    : 只抓取原发短贴，使用 UI 模式引擎 (XueqiuShortPostSpider)
+# 2    : 只抓取长贴 (专栏文章)，使用 API 模式引擎 (XueqiuLongPostSpider)
+TYPE_PARAM = 2
+
+
+
 import warnings
 warnings.simplefilter("ignore")
 
 import sys
 import os
-from xueqiu_drission import XueqiuDrissionSpider
+from xueqiu_short_post_spider import XueqiuShortPostSpider
+from xueqiu_long_post_spider import XueqiuLongPostSpider
 from analyze_user import analyze_user_level
 
 # 颜色常量
@@ -13,12 +28,6 @@ RED = '\033[31m'
 BLUE = '\033[34m'
 RESET = '\033[0m'
 
-# ================= 配置区 =================
-# 分析配置
-TOP_STOCKS_COUNT = 20  # 关注领域显示的股票数量
-TOP_POSTS_COUNT = 3   # 最火爆发言显示的条数
-IS_ORIGINAL_POST = False  
-# 是否原发，True 表示只抓取原发 (type=0)，False 表示包含转发 (不添加 type 参数)
 
 
 
@@ -74,9 +83,14 @@ def main():
 
     # 如果不是仅分析模式 (-1)，则执行爬取
     if start_page != -1:
-        print(f"\n{GREEN}[Step 1] 开始爬取用户 {username}({uid}) 的数据...{RESET}")
-        type_value = 0 if IS_ORIGINAL_POST else None
-        spider = XueqiuDrissionSpider(username, uid, type_param=type_value, filter_regex=FILTER_REGEX)
+        if TYPE_PARAM == 2:
+            print(f"\n{GREEN}[Step 1] 开始爬取雪球长贴(专栏): {username}({uid}) [API模式] ...{RESET}")
+            spider = XueqiuLongPostSpider(username, uid, type_param=TYPE_PARAM, filter_regex=FILTER_REGEX)
+        else:
+            mode_desc = "原发" if TYPE_PARAM == 0 else "全部"
+            print(f"\n{GREEN}[Step 1] 开始爬取雪球短贴({mode_desc}): {username}({uid}) [UI模式] ...{RESET}")
+            spider = XueqiuShortPostSpider(username, uid, type_param=TYPE_PARAM, filter_regex=FILTER_REGEX)
+            
         spider.run(start_page=start_page, end_page=end_page)
     
     if os.path.exists(target_file):
