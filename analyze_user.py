@@ -2,6 +2,21 @@ import pandas as pd
 import re
 import os
 from datetime import datetime
+import colorama
+from prettytable import PrettyTable
+
+# 初始化 colorama
+colorama.init(autoreset=True)
+
+# 定义颜色
+CYAN = colorama.Fore.CYAN
+YELLOW = colorama.Fore.YELLOW
+GREEN = colorama.Fore.GREEN
+MAGENTA = colorama.Fore.MAGENTA
+RED = colorama.Fore.RED
+BLUE = colorama.Fore.BLUE
+WHITE = colorama.Fore.WHITE
+BOLD = colorama.Style.BRIGHT
 
 def analyze_user_level(file_path, top_stocks_count=5, top_posts_count=3):
     if not os.path.exists(file_path):
@@ -60,47 +75,60 @@ def analyze_user_level(file_path, top_stocks_count=5, top_posts_count=3):
     stock_counts = pd.Series(all_stocks).value_counts().head(top_stocks_count)
 
     # 5. 输出结果报告
-    header = f" 📊 雪球短贴分析报告: {os.path.basename(file_path)} "
-    print("\n" + "═" * 60)
-    print(f" {header.center(58)} ")
-    print("═" * 60)
-    print(f"  🌟 分析范围: {time_range_str} ({days_diff}天)")
-    print(f"  📝 总发言数: {len(df)} 篇 (约 {post_frequency:.2f} 篇/天)")
-    print("-" * 60)
+    header = f" {BOLD}{CYAN}[ 雪球短贴分析报告: {os.path.basename(file_path)} ]{WHITE} "
+    print("\n" + f"{CYAN}═{WHITE}" * 60)
+    print(f" {header.center(65)} ") # 稍微加长宽度补偿颜色代码长度
+    print(f"{CYAN}═{WHITE}" * 60)
+    print(f"  {YELLOW}[*]{WHITE} 分析范围: {GREEN}{time_range_str}{WHITE} ({days_diff}天)")
+    print(f"  {YELLOW}[*]{WHITE} 总发言数: {GREEN}{len(df)}{WHITE} 篇 (约 {GREEN}{post_frequency:.2f}{WHITE} 篇/天)")
+    print(f"{CYAN}-{WHITE}" * 60)
 
-    print(f"\n[ 1. 内容深度 / 📚 CONTENT DEPTH ]")
+    print(f"\n{MAGENTA}[ 1. 内容深度 / CONTENT DEPTH ]{WHITE}")
     print(f"  + 平均字数: {avg_len:.1f}")
     print(f"  + 字数中位数: {median_len:.1f}")
     print(f"  + 千字长文: {long_article_count} 篇 (占比 {long_article_ratio:.1f}%)")
-    status_label = '深度型选手 🧠' if long_article_ratio > 10 else '短评/碎片化选手 ⚡'
-    print(f"  [!] 用户画像: >>> {status_label} <<<")
+    status_label = f'{CYAN}深度型选手{WHITE}' if long_article_ratio > 10 else f'{YELLOW}短评/碎片化选手{WHITE}'
+    print(f"  {RED}[!] 用户画像: >>> {status_label} {RED}<<<{WHITE}")
 
-    print(f"\n[ 2. 社区影响力 / 🔥 INFLUENCE ]")
+    print(f"\n{MAGENTA}[ 2. 社区影响力 / INFLUENCE ]{WHITE}")
     print(f"  + 平均点赞: {avg_likes:.1f}")
     print(f"  + 点赞中位数: {median_likes:.1f}")
     print(f"  + 互动效率: {engagement_efficiency:.2f} 次点赞/每千字")
-    influence_label = '高质量博主 🏆' if avg_likes > 20 else '普通用户 👤'
-    print(f"  [!] 影响力评级: >>> {influence_label} <<<")
+    influence_label = f'{CYAN}高质量博主{WHITE}' if avg_likes > 20 else f'{YELLOW}普通用户{WHITE}'
+    print(f"  {RED}[!] 影响力评级: >>> {influence_label} {RED}<<<{WHITE}")
 
-    print(f"\n[ 3. 关注领域 / 🎯 TOP {top_stocks_count} STOCKS ]")
-    print("-" * 30)
+    print(f"\n{MAGENTA}[ 3. 关注领域 / TOP {top_stocks_count} STOCKS ]{WHITE}")
+    print(f"{CYAN}-{WHITE}" * 30)
     if not stock_counts.empty:
+        # 使用 PrettyTable 生成表格
+        table = PrettyTable()
+        table.field_names = ["序号", "标的名称", "次数"]
+        table.align["序号"] = "c"
+        table.align["标的名称"] = "l"
+        table.align["次数"] = "r"
+        
         for i, (stock, count) in enumerate(stock_counts.items(), 1):
-            bar = "📈" * min(int(count), 10) # 使用趋势图 Emoji 作为条形图
-            print(f"  {i}. {str(stock).ljust(12)} | {str(count).rjust(3)} 次 {bar}")
+            # 将数值和文字分别上色
+            table.add_row([
+                f"{YELLOW}{i}{WHITE}", 
+                f"{GREEN}{stock}{WHITE}", 
+                f"{CYAN}{count}{WHITE}"
+            ])
+            
+        print(table)
     else:
         print("  (未提取到明确的股票提及)")
 
-    print(f"\n[ 4. 最火爆的 {top_posts_count} 篇发言 / 🌟 TOP POSTS ]")
-    print("-" * 30)
+    print(f"\n{MAGENTA}[ 4. 最火爆的 {top_posts_count} 篇发言 / TOP POSTS ]{WHITE}")
+    print(f"{CYAN}-{WHITE}" * 30)
     top_n = df.nlargest(top_posts_count, '点赞数')[['发布时间', '点赞数', '摘要']]
     for i, row in top_n.iterrows():
         time_str = row['发布时间'].strftime('%Y-%m-%d') if pd.notnull(row['发布时间']) else "未知时间"
-        print(f"  ({i+1}) 📅 [{time_str}] ❤️ {int(row['点赞数'])} Likes")
-        print(f"      \"{str(row['摘要'])[:300]}...\"")
+        print(f"  {YELLOW}({i+1}){WHITE} [{time_str}] {RED}<3{WHITE} {int(row['点赞数'])} Likes")
+        print(f"      {GREEN}\"{str(row['摘要'])[:300]}...\"{WHITE}")
         print()
 
-    print("═" * 60 + "\n")
+    print(f"{CYAN}═{WHITE}" * 60 + "\n")
 
 if __name__ == "__main__":
     import sys
