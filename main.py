@@ -16,7 +16,7 @@ RESET = '\033[0m'
 # ================= 配置区 =================
 # 分析配置
 TOP_STOCKS_COUNT = 20  # 关注领域显示的股票数量
-TOP_POSTS_COUNT = 10   # 最火爆发言显示的条数
+TOP_POSTS_COUNT = 3   # 最火爆发言显示的条数
 IS_ORIGINAL_POST = False  
 # 是否原发，True 表示只抓取原发 (type=0)，False 表示包含转发 (不添加 type 参数)
 
