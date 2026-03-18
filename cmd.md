@@ -16,7 +16,7 @@ python3 main.py 超级鹿鼎公 8790885129
 python3 main.py 胜和 2612090930
 python3 main.py 陸陸陸三率投资 3579186337
 python3 main.py 菜头日记 5266360866
-python3 main.py Metasmile 3755925868
+python3 main.py metalslime 2292705444
 python3 main.py 雪月霜 1505944393
 
 

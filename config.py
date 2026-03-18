@@ -23,4 +23,4 @@ DEFAULT_USER_ID = "2287364713"
 # None : 抓取所有短贴（包含转发），使用 UI 模式引擎 (XueqiuShortPostSpider)
 # 0    : 只抓取原发短贴，使用 UI 模式引擎 (XueqiuShortPostSpider)
 # 2    : 只抓取长贴 (专栏文章)，使用 API 模式引擎 (XueqiuLongPostSpider)
-TYPE_PARAM = 2
+TYPE_PARAM = None
