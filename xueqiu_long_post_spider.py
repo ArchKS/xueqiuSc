@@ -509,11 +509,12 @@ class XueqiuLongPostSpider:
             self.page.quit()
 
 if __name__ == "__main__":
-    USERNAME = "KeepSlowly"
-    USER_ID = "2287364713"
-    # XQ_A_TOKEN 不再需要，依赖 run.py 中的浏览器登录会话
+    import sys
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    from config import DEFAULT_USERNAME, DEFAULT_USER_ID, FILTER_REGEX, TYPE_PARAM
     
-    spider = XueqiuLongPostSpider(USERNAME, USER_ID)
-    # 不传参数默认爬取全部页码
-    spider.run() 
+    # XQ_A_TOKEN 不再需要，依赖 run.py 中的浏览器登录会话
+    spider = XueqiuLongPostSpider(DEFAULT_USERNAME, DEFAULT_USER_ID, type_param=TYPE_PARAM, filter_regex=FILTER_REGEX)
+    # 限制抓取页数以供测试
+    spider.run(start_page=1, end_page=2) 
 

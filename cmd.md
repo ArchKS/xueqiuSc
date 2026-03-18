@@ -21,3 +21,31 @@ python3 main.py 菜头日记 5266360866
 python3 main.py Metasmile 3755925868
 python3 main.py 雪月霜 1505944393
 
+
+
+# 查看帮助文档
+python filter_csv.py -h
+
+# 示例 1: 筛选点赞数 >= 10，且字数 >= 100 的帖子
+python filter_csv.py data/KeepSlowly.csv -l 10 -len 100
+
+# 示例 2: 筛选评论数 >= 5 的帖子
+python filter_csv.py data/KeepSlowly.csv -c 5
+
+# 示例 3: 筛选点赞数 >= 20，评论数 >= 10，字数 >= 500 的超级干货
+python filter_csv.py data/KeepSlowly.csv -l 20 -c 10 -len 500
+
+
+逻辑实现：
+基础通过门槛：必须同时满足 点赞数 >= l 且 评论数 >= c 且 正文字数 >= len。
+特赦（豁免）机制：
+如果 点赞数 >= sl，直接通过，无视其他所有条件。
+如果 评论数 >= sc，直接通过，无视其他所有条件。
+命令行参数更新：
+-l, --likes: 基础点赞门槛 (b)
+-c, --comments: 基础评论门槛 (a)
+-len, --length: 基础字数门槛 (c)
+-sl, --super-likes: 特赦点赞数 (y)
+-sc, --super-comments: 特赦评论数 (x)
+使用示例：
+如果你想要：评论 >= 10 且 点赞 >= 5 且 字数 >= 20 才能通过，但 如果点赞超过 50 或 评论超过 30 则无条件通过：

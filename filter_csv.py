@@ -1,0 +1,189 @@
+import pandas as pd
+import argparse
+import os
+import colorama
+import re
+from prettytable import PrettyTable
+from datetime import datetime
+from config import TOP_STOCKS_COUNT, TOP_POSTS_COUNT
+
+# 初始化 colorama 支持彩色输出
+colorama.init(autoreset=True)
+GREEN = colorama.Fore.GREEN
+YELLOW = colorama.Fore.YELLOW
+RED = colorama.Fore.RED
+CYAN = colorama.Fore.CYAN
+MAGENTA = colorama.Fore.MAGENTA
+BLUE = colorama.Fore.BLUE
+WHITE = colorama.Fore.WHITE
+BOLD = colorama.Style.BRIGHT
+
+def filter_csv(file_path, min_likes, min_comments, min_length, super_likes=None, super_comments=None):
+    if not os.path.exists(file_path):
+        print(f"{RED}[-] 错误: 文件 '{file_path}' 不存在。")
+        return
+
+    try:
+        df = pd.read_csv(file_path, encoding='utf-8-sig')
+    except UnicodeDecodeError:
+        df = pd.read_csv(file_path, encoding='gb18030')
+
+    original_count = len(df)
+    print(f"{CYAN}[*] 成功加载 {file_path}，共 {original_count} 条记录。{WHITE}")
+
+    # 1. 数据基础清洗
+    df['点赞数'] = pd.to_numeric(df['点赞数'], errors='coerce').fillna(0)
+    df['评论数'] = pd.to_numeric(df['评论数'], errors='coerce').fillna(0)
+    df['转发数'] = pd.to_numeric(df['转发数'], errors='coerce').fillna(0)
+    df['正文'] = df['正文'].fillna('').astype(str)
+    df['发布时间'] = pd.to_datetime(df['发布时间'], errors='coerce')
+    
+    # 0. 时间范围统计
+    valid_dates = df['发布时间'].dropna()
+    if not valid_dates.empty:
+        start_date = valid_dates.min().strftime('%Y-%m-%d')
+        end_date = valid_dates.max().strftime('%Y-%m-%d')
+        time_range_str = f"{start_date} 至 {end_date}"
+        days_diff = (valid_dates.max() - valid_dates.min()).days
+        post_frequency = original_count / max(days_diff, 1)
+    else:
+        time_range_str = "未知"
+        days_diff = 0
+        post_frequency = 0
+
+    # 2. 清理元数据与换行符
+    pattern = r'(来自.*?的雪球专栏)?\s*(来源\s*[：:]\s*.*?)?作者\s*[：:]\s*.*?（https://xueqiu\.com/.*?）\s*'
+    df['正文'] = df['正文'].str.replace(pattern, '', regex=True, flags=re.DOTALL)
+    df['正文'] = df['正文'].str.replace(r'[\r\n]+', ' ', regex=True).str.strip()
+    
+    # 3. 计算深度与影响力指标
+    df['字数'] = df['正文'].apply(len)
+    avg_len = df['字数'].mean()
+    median_len = df['字数'].median()
+    long_article_count = len(df[df['字数'] > 1000])
+    long_article_ratio = (long_article_count / original_count) * 100
+
+    avg_likes = df['点赞数'].mean()
+    median_likes = df['点赞数'].median()
+    engagement_efficiency = (df['点赞数'].sum() / df['字数'].sum()) * 1000 if df['字数'].sum() > 0 else 0
+
+    # 4. 风格统计：提取提及的股票
+    stock_pattern = r'\$([^$()]+)(?:\(([^$]+)\))?\$'
+    all_stocks = []
+    for text in df['正文']:
+        matches = re.findall(stock_pattern, text)
+        for m in matches:
+            all_stocks.append(m[0].strip())
+    stock_counts = pd.Series(all_stocks).value_counts().head(TOP_STOCKS_COUNT)
+
+    # 5. 输出综合分析报告
+    header = f" {BOLD}{CYAN}[ 雪球数据综合分析报告: {os.path.basename(file_path)} ]{WHITE} "
+    print("\n" + f"{CYAN}═{WHITE}" * 70)
+    print(f" {header.center(75)} ")
+    print(f"{CYAN}═{WHITE}" * 70)
+    print(f"  {YELLOW}[*]{WHITE} 分析范围: {GREEN}{time_range_str}{WHITE} ({days_diff}天)")
+    print(f"  {YELLOW}[*]{WHITE} 总发言数: {GREEN}{original_count}{WHITE} 篇 (约 {GREEN}{post_frequency:.2f}{WHITE} 篇/天)")
+    print(f"{CYAN}-{WHITE}" * 70)
+
+    print(f"\n{MAGENTA}[ 1. 内容深度与影响力 ]{WHITE}")
+    print(f"  + 平均字数: {avg_len:.1f} | 字数中位数: {median_len:.1f}")
+    print(f"  + 千字长文: {long_article_count} 篇 (占比 {long_article_ratio:.1f}%)")
+    print(f"  + 平均点赞: {avg_likes:.1f} | 点赞中位数: {median_likes:.1f}")
+    print(f"  + 互动效率: {engagement_efficiency:.2f} 次点赞/每千字")
+    
+    status_label = f'{CYAN}深度型选手{WHITE}' if long_article_ratio > 10 else f'{YELLOW}短评/碎片化选手{WHITE}'
+    influence_label = f'{CYAN}高质量博主{WHITE}' if avg_likes > 20 else f'{YELLOW}普通用户{WHITE}'
+    print(f"  {RED}[!] 用户画像: >>> {status_label} | {influence_label} {RED}<<<{WHITE}")
+
+    print(f"\n{MAGENTA}[ 2. 数据分布情况 ]{WHITE}")
+    def print_dist(series, label):
+        print(f"\n{YELLOW}>> {label} 分布:{WHITE}")
+        if label == "正文字数":
+            custom_bins = [-1, 20, 100, 300, 1000, float('inf')]
+            custom_labels = ["0 - 20", "21 - 100", "101 - 300", "301 - 1000", "1000+"]
+        else:
+            custom_bins = [-1, 20, 100, 300, float('inf')]
+            custom_labels = ["0 - 20", "21 - 100", "101 - 300", "300+"]
+        
+        bins = pd.cut(series, bins=custom_bins, labels=custom_labels)
+        dist = bins.value_counts().sort_index()
+        for interval_label, count in dist.items():
+            pct = (count / len(series)) * 100
+            bar = "■" * int(pct / 2)
+            print(f"   {str(interval_label).ljust(12)} | {count:4d} 篇 ({pct:4.1f}%) {bar}")
+
+    print_dist(df['点赞数'], "点赞数")
+    print_dist(df['评论数'], "评论数")
+    print_dist(df['字数'], "正文字数")
+
+    if not stock_counts.empty:
+        print(f"\n{MAGENTA}[ 3. 关注领域 (TOP {TOP_STOCKS_COUNT}) ]{WHITE}")
+        table = PrettyTable()
+        table.field_names = ["序号", "标的名称", "提及次数"]
+        for i, (stock, count) in enumerate(stock_counts.items(), 1):
+            table.add_row([f"{YELLOW}{i}{WHITE}", f"{GREEN}{stock}{WHITE}", f"{CYAN}{count}{WHITE}"])
+        print(table)
+
+    long_posts = df[df['字数'] > 1000].copy()
+    if not long_posts.empty:
+        print(f"\n{MAGENTA}[ 4. 千字长文清单 ]{WHITE}")
+        table = PrettyTable()
+        table.field_names = ["序号", "点赞", "评论", "转发", "预览 (前25字)", "链接"]
+        table.align["预览 (前25字)"] = "l"
+        for i, (idx, row) in enumerate(long_posts.iterrows(), 1):
+            preview = row['正文'][:25]
+            table.add_row([
+                f"{YELLOW}{i}{WHITE}", f"{int(row['点赞数'])}", f"{int(row['评论数'])}", 
+                f"{int(row['转发数'])}", f"{GREEN}{preview}...{WHITE}", f"{BLUE}{row['链接']}{WHITE}"
+            ])
+        print(table)
+
+    print(f"\n" + f"{CYAN}═{WHITE}" * 70 + "\n")
+
+    # 6. 应用过滤逻辑
+    pass_normal = (df['点赞数'] >= min_likes) & (df['评论数'] >= min_comments) & (df['字数'] >= min_length)
+    pass_super_likes = (df['点赞数'] >= super_likes) if super_likes is not None else False
+    pass_super_comments = (df['评论数'] >= super_comments) if super_comments is not None else False
+    
+    condition = pass_normal | pass_super_likes | pass_super_comments
+    
+    filtered_df = df[condition].copy()
+    rejected_df = df[~condition].copy() 
+    
+    for temp_df in [filtered_df, rejected_df]:
+        temp_df.drop(columns=['字数', '摘要'], inplace=True, errors='ignore')
+    
+    output_dir = "filter"
+    if not os.path.exists(output_dir): os.makedirs(output_dir)
+
+    base_name = os.path.basename(file_path)
+    name, ext = os.path.splitext(base_name)
+    
+    suffix_parts = []
+    if min_likes > 0: suffix_parts.append(f"L{min_likes}")
+    if min_comments > 0: suffix_parts.append(f"C{min_comments}")
+    if min_length > 0: suffix_parts.append(f"Len{min_length}")
+    if super_likes: suffix_parts.append(f"SL{super_likes}")
+    if super_comments: suffix_parts.append(f"SC{super_comments}")
+    suffix = "_" + "_".join(suffix_parts) if suffix_parts else "_all"
+
+    if not filtered_df.empty:
+        p = os.path.join(output_dir, f"{name}_filter{suffix}{ext}")
+        filtered_df.to_csv(p, index=False, encoding='utf-8-sig')
+        print(f"{GREEN}[+] 保留 {len(filtered_df)} 条记录。保存至: {p}")
+
+    if not rejected_df.empty:
+        p = os.path.join(output_dir, f"{name}_rejected{suffix}{ext}")
+        rejected_df.to_csv(p, index=False, encoding='utf-8-sig')
+        print(f"{RED}[-] 剔除 {len(rejected_df)} 条记录。保存至: {p}{WHITE}")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="雪球帖子数据综合过滤与分析工具")
+    parser.add_argument("file", help="CSV 文件路径")
+    parser.add_argument("-l", "--likes", type=int, default=0)
+    parser.add_argument("-c", "--comments", type=int, default=0)
+    parser.add_argument("-len", "--length", type=int, default=0)
+    parser.add_argument("-sl", "--super-likes", type=int)
+    parser.add_argument("-sc", "--super-comments", type=int)
+    args = parser.parse_args()
+    filter_csv(args.file, args.likes, args.comments, args.length, args.super_likes, args.super_comments)

@@ -1,17 +1,3 @@
-# ================= 配置区 =================
-# 分析配置
-TOP_STOCKS_COUNT = 20  # 关注领域显示的股票数量
-TOP_POSTS_COUNT = 3   # 最火爆发言显示的条数
-
-# 爬取配置
-# TYPE_PARAM 控制抓取类型与使用的引擎：
-# None : 抓取所有短贴（包含转发），使用 UI 模式引擎 (XueqiuShortPostSpider)
-# 0    : 只抓取原发短贴，使用 UI 模式引擎 (XueqiuShortPostSpider)
-# 2    : 只抓取长贴 (专栏文章)，使用 API 模式引擎 (XueqiuLongPostSpider)
-TYPE_PARAM = 2
-
-
-
 import warnings
 warnings.simplefilter("ignore")
 
@@ -19,7 +5,8 @@ import sys
 import os
 from xueqiu_short_post_spider import XueqiuShortPostSpider
 from xueqiu_long_post_spider import XueqiuLongPostSpider
-from analyze_user import analyze_user_level
+from filter_csv import filter_csv
+from config import TYPE_PARAM, FILTER_REGEX, TOP_STOCKS_COUNT, TOP_POSTS_COUNT
 
 # 颜色常量
 GREEN = '\033[32m'
@@ -27,17 +14,6 @@ YELLOW = '\033[33m'
 RED = '\033[31m'
 BLUE = '\033[34m'
 RESET = '\033[0m'
-
-
-
-
-# 正则过滤列表：匹配到则不保存该条记录（用于过滤系统通知类型内容）
-# 注意：每条正则会应用于帖子标题/正文前缀，不区分大小写
-FILTER_REGEX = [
-    r"^我刚刚关注了股票",
-    r"^我刚刚调整了雪球组合",
-]
-# ==========================================
 
 def main():
     # 强制控制台输出使用 UTF-8，防止中文和特殊符号乱码
@@ -94,12 +70,9 @@ def main():
         spider.run(start_page=start_page, end_page=end_page)
     
     if os.path.exists(target_file):
-        print(f"\n{GREEN}[Step 2] 爬取完成，开始分析数据...{RESET}")
-        analyze_user_level(
-            target_file, 
-            top_stocks_count=TOP_STOCKS_COUNT, 
-            top_posts_count=TOP_POSTS_COUNT
-        )
+        print(f"\n{GREEN}[Step 2] 爬取完成，正在生成分析报告...{RESET}")
+        # 默认调用 filter_csv 不加过滤条件，仅用于展示综合分析报告
+        filter_csv(target_file, min_likes=0, min_comments=0, min_length=0)
     else:
         print(f"\n{RED}[-] 错误: 未能找到生成的数据文件 {target_file}，分析取消。{RESET}")
 
