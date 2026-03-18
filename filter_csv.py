@@ -65,8 +65,13 @@ def filter_csv(file_path, min_likes, min_comments, min_length, super_likes=None,
     # 移除正文中的所有换行符 (\n 和 \r)
     df['正文'] = df['正文'].str.replace(r'[\r\n]+', ' ', regex=True).str.strip()
     
-    # 3. 计算深度与影响力指标
+    # 彻底清理可能残留的空格
+    df['正文'] = df['正文'].str.strip()
+    
+    # 重新计算字数辅助列，因为上面的清洗可能会缩短正文长度
     df['字数'] = df['正文'].apply(len)
+    
+    # 3. 计算深度与影响力指标
     avg_len = df['字数'].mean()
     median_len = df['字数'].median()
     long_article_count = len(df[df['字数'] > 1000])
@@ -149,18 +154,31 @@ def filter_csv(file_path, min_likes, min_comments, min_length, super_likes=None,
 
     print(f"\n" + f"{CYAN}═{WHITE}" * 70 + "\n")
 
-    # 6. 应用过滤逻辑
-    pass_normal = (df['点赞数'] >= min_likes) & (df['评论数'] >= min_comments) & (df['字数'] >= min_length)
-    pass_super_likes = (df['点赞数'] >= super_likes) if super_likes is not None else False
-    pass_super_comments = (df['评论数'] >= super_comments) if super_comments is not None else False
+    # 6. ID 去重逻辑 (优先保留正文最长的版本)
+    # 先按照 ID 和字数降序排序
+    df = df.sort_values(by=['ID', '字数'], ascending=[True, False])
+    # 标记重复项 (除了第一项/最长项以外的所有重复项)
+    same_mask = df.duplicated(subset=['ID'], keep='first')
+    
+    same_df = df[same_mask].copy() # 被去重的项
+    df_unique = df[~same_mask].copy() # 唯一项 (用于后续过滤)
+
+    # 7. 应用过滤逻辑 (在去重后的数据上进行)
+    pass_normal = (df_unique['点赞数'] >= min_likes) & (df_unique['评论数'] >= min_comments) & (df_unique['字数'] >= min_length)
+    pass_super_likes = (df_unique['点赞数'] >= super_likes) if super_likes is not None else False
+    pass_super_comments = (df_unique['评论数'] >= super_comments) if super_comments is not None else False
     
     condition = pass_normal | pass_super_likes | pass_super_comments
     
-    filtered_df = df[condition].copy()
-    rejected_df = df[~condition].copy() 
+    filtered_df = df_unique[condition].copy()
+    rejected_df = df_unique[~condition].copy() 
     
-    for temp_df in [filtered_df, rejected_df]:
-        temp_df.drop(columns=['字数', '摘要'], inplace=True, errors='ignore')
+    # 移除辅助列并准备保存
+    for temp_df in [filtered_df, rejected_df, same_df]:
+        if '字数' in temp_df.columns:
+            temp_df.drop(columns=['字数'], inplace=True, errors='ignore')
+        if '摘要' in temp_df.columns:
+            temp_df.drop(columns=['摘要'], inplace=True, errors='ignore')
     
     output_dir = "filter"
     if not os.path.exists(output_dir): os.makedirs(output_dir)
@@ -176,15 +194,23 @@ def filter_csv(file_path, min_likes, min_comments, min_length, super_likes=None,
     if super_comments: suffix_parts.append(f"SC{super_comments}")
     suffix = "_" + "_".join(suffix_parts) if suffix_parts else "_all"
 
+    # 保存 1: 满足条件的唯一记录
     if not filtered_df.empty:
         p = os.path.join(output_dir, f"{name}_filter{suffix}{ext}")
         filtered_df.to_csv(p, index=False, encoding='utf-8-sig')
-        print(f"{GREEN}[+] 保留 {len(filtered_df)} 条记录。保存至: {p}")
+        print(f"{GREEN}[+] 保留 {len(filtered_df)} 条唯一记录。保存至: {p}")
 
+    # 保存 2: 被过滤条件剔除的唯一记录
     if not rejected_df.empty:
         p = os.path.join(output_dir, f"{name}_rejected{suffix}{ext}")
         rejected_df.to_csv(p, index=False, encoding='utf-8-sig')
-        print(f"{RED}[-] 剔除 {len(rejected_df)} 条记录。保存至: {p}{WHITE}")
+        print(f"{RED}[-] 剔除 {len(rejected_df)} 条不合规记录。保存至: {p}")
+
+    # 保存 3: 被去重逻辑剔除的项 (Same ID, 但正文较短)
+    if not same_df.empty:
+        p = os.path.join(output_dir, f"{name}_same{suffix}{ext}")
+        same_df.to_csv(p, index=False, encoding='utf-8-sig')
+        print(f"{YELLOW}[!] 发现 {len(same_df)} 条重复 ID 项 (已保留最长正文版本)。重复项保存至: {p}{WHITE}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="雪球帖子数据综合过滤与分析工具")
