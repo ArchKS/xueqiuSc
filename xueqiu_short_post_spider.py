@@ -325,6 +325,11 @@ class XueqiuShortPostSpider:
                                 
                                 full_text = content_found if content_found else content_ele.text
                                 new_tab.close()
+                                
+                                # 检查字数并暂停程序
+                                if not full_text or len(full_text.strip()) == 0:
+                                    print(f"{RED}[!] 当前已经获取不到内容 (字数为0) | 链接: {href}{RESET}")
+                                    input(f"{YELLOW}请检查浏览器是否遇到反爬挑战，处理完毕后按回车继续...{RESET}")
                             except Exception as e:
                                 print(f"  [!] 专栏详情抓取失败: {e}")
                                 full_text = content_ele.text

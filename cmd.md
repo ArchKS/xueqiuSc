@@ -49,3 +49,7 @@ python filter_csv.py data/KeepSlowly.csv -l 20 -c 10 -len 500
 -sc, --super-comments: 特赦评论数 (x)
 使用示例：
 如果你想要：评论 >= 10 且 点赞 >= 5 且 字数 >= 20 才能通过，但 如果点赞超过 50 或 评论超过 30 则无条件通过：
+
+
+
+python3 filter_csv.py data/凝视三千弱水的深渊Z_Full.csv -l 5 -c 10 -len 20

@@ -54,6 +54,15 @@ def filter_csv(file_path, min_likes, min_comments, min_length, super_likes=None,
     # 2. 清理元数据与换行符
     pattern = r'(来自.*?的雪球专栏)?\s*(来源\s*[：:]\s*.*?)?作者\s*[：:]\s*.*?（https://xueqiu\.com/.*?）\s*'
     df['正文'] = df['正文'].str.replace(pattern, '', regex=True, flags=re.DOTALL)
+    
+    # 提取博主本人发文逻辑：
+    # a. 处理转发链：保留第一个 //@ 之前的内容
+    df['正文'] = df['正文'].apply(lambda x: re.split(r'\s*//\s*@', x, 1)[0].strip())
+    
+    # b. 处理回复前缀：移除开头的 "回复@xxx: "
+    df['正文'] = df['正文'].str.replace(r'^回复\s*@.*?[：:]\s*', '', regex=True)
+    
+    # 移除正文中的所有换行符 (\n 和 \r)
     df['正文'] = df['正文'].str.replace(r'[\r\n]+', ' ', regex=True).str.strip()
     
     # 3. 计算深度与影响力指标

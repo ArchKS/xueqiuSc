@@ -389,6 +389,11 @@ class XueqiuLongPostSpider:
                         full_content, fetch_start = self.fetch_detail(post_url, post_date)
                         item['正文'] = full_content if full_content else self.clean_html(raw_text)
                         
+                        # 检查字数并暂停程序
+                        if not item['正文'] or len(item['正文'].strip()) == 0:
+                            print(f"{RED}[!] 当前已经获取不到内容 (字数为0) | 链接: {post_url}{RESET}")
+                            input(f"{YELLOW}请检查浏览器是否遇到反爬挑战，处理完毕后按回车继续...{RESET}")
+                        
                         # 动态停留逻辑
                         content_len = len(item['正文'])
                         target_wait = 1 + min(4, content_len / 1000)
