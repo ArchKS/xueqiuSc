@@ -126,7 +126,88 @@ python analyze_user.py data/KeepSlowly.csv
 
 项目目前核心文件：
 main.py: 主程序入口（推荐从这里运行）。
-xueqiu_drission.py: 核心爬虫引擎。
+xueqiu_short_post_spider.py: 核心爬虫引擎。
 analyze_user.py: 数据统计与水平分析引擎。
 Usage.md: 使用说明。
 log.md: 开发变更日志。
+
+# 雪球用户发言全量爬虫使用指南
+
+本工具基于 Python 开发，使用 `DrissionPage` 驱动浏览器技术，能够自动绕过雪球的 `debugger` 反调试、阿里云 WAF 防火墙，并全自动抓取指定用户的所有历史发言及帖子正文。
+
+## 核心特性
+- **自动过验证**：通过真实浏览器环境，自动处理滑块和 JS 挑战。
+- **正文全抓取**：自动进入每篇帖子的详情页抓取完整内容。
+- **智能防封**：根据文章长度动态计算停留时间，并计入页面加载耗时，模拟真人阅读。
+- **时间预估**：实时显示已运行时间、总体进度及预计剩余时间。
+- **数据清洗**：自动剔除 HTML 标签（如超链接），仅保留纯文本。
+- **自动分页**：自动检测用户总页数，实现一键全量爬取。
+
+---
+
+## 快速开始
+
+### 1. 环境准备
+确保你已安装 Python 3.8+。在项目根目录下运行以下命令安装必要依赖：
+
+```bash
+pip install requests pandas DrissionPage
+```
+
+### 2. 获取关键参数 `xq_a_token`
+为了确保爬虫能稳定访问，建议提供你浏览器中的登录 Token：
+1. 在浏览器（Chrome/Edge）中打开 [雪球网](https://xueqiu.com/) 并登录。
+2. 按 `F12` 打开开发者工具，点击 **Application (应用)** -> **Cookies** -> `https://xueqiu.com`。
+3. 找到名为 `xq_a_token` 的值并复制。
+
+### 3. 配置爬虫
+打开 `xueqiu_short_post_spider.py`，在文件末尾修改以下配置：
+
+```python
+if __name__ == "__main__":
+    USER_ID = "2287364713"  # 替换为你想要爬取的用户 ID
+    XQ_A_TOKEN = "你的_xq_a_token" # 替换为你刚才复制的 Token
+    
+    spider = XueqiuDrissionSpider(USER_ID, xq_a_token=XQ_A_TOKEN)
+    spider.run() # 默认爬取全部，若只想爬前2页可改为 spider.run(max_pages=2)
+```
+
+### 4. 运行爬虫
+在终端执行：
+
+```bash
+.venv/Scripts/python.exe xueqiu_short_post_spider.py
+.venv/Scripts/python.exe analyze_user.py
+```
+
+---
+
+## 输出结果
+任务完成后，系统会在当前文件夹生成一个 CSV 文件：
+`用户名.csv`
+
+**包含字段：**
+- `ID`: 帖子唯一标识
+- `发布时间`: 格式化的时间字符串
+- `点赞数 / 评论数 / 转发数`: 互动数据
+- `链接`: 帖子原地址
+- `摘要`: 列表页看到的简短内容
+- `正文`: 详情页抓取的清洗后的纯文本全文
+
+---
+
+## 注意事项
+1. **浏览器驱动**：本工具默认使用系统安装的 Chrome。运行前请关闭已打开的调试模式浏览器窗口。
+2. **人机验证**：如果爬取过程中弹出滑块验证码，请在弹出的浏览器窗口中**手动滑动**，脚本检测到通过后会自动继续。
+3. **法律声明**：本工具仅供学习和研究使用，请勿用于商业用途或大规模恶意抓取，遵守雪球网的相关服务协议。
+
+
+
+
+之前用接口的形式访问雪球的文章，总有反爬打断，现在我要你模拟用户点击下一页的方式爬取信息；
+对当前列表，如果有展开的，则点击展开获取这篇帖子全部内容；没有展开的，则显示的内容即为全部内容；
+如果是长文的，则用原逻辑获取长文；
+如果当前是专栏，则点击这篇文章，打开浏览器新标签，获取其全文。专栏一般是timeline__item__content类下面为a标签的项；
+
+当Type=2的时候，是请求长文
+https://xueqiu.com/v4/statuses/user_timeline.json?page=1&user_id=2287364713&type=2&md5__1038=222029ad07-IW2%2F%3DPhgrCGcGXgIxXTI_k5tgNWGkg7P%3DfRAvPgXgFsPjXtOd7vt42xQ%2F3blxFy%2FQEIVGVWgGPTug5PGlgCPGEgXPtSKgTvPXghPtDRgIv_QqP%3DsBgPPIBgEyrZ_MOvItgyzgGHAsgTabVq%2FgFZvg282gsiBgzT%2Fv3r4GE67uVAgEu_xZAr%2FN_sV0_IgP%2Fr7v_tg
