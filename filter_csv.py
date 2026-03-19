@@ -5,7 +5,11 @@ import colorama
 import re
 from prettytable import PrettyTable
 from datetime import datetime
-from config import TOP_STOCKS_COUNT, TOP_POSTS_COUNT
+from config import (
+    TOP_STOCKS_COUNT, TOP_POSTS_COUNT, KEYWORDS_FILTER,
+    DEFAULT_MIN_LIKES, DEFAULT_MIN_COMMENTS, DEFAULT_MIN_LENGTH,
+    DEFAULT_SUPER_LIKES, DEFAULT_SUPER_COMMENTS
+)
 
 # 初始化 colorama 支持彩色输出
 colorama.init(autoreset=True)
@@ -168,13 +172,35 @@ def filter_csv(file_path, min_likes, min_comments, min_length, super_likes=None,
     pass_super_likes = (df_unique['点赞数'] >= super_likes) if super_likes is not None else False
     pass_super_comments = (df_unique['评论数'] >= super_comments) if super_comments is not None else False
     
-    condition = pass_normal | pass_super_likes | pass_super_comments
+    # 关键词过滤逻辑：支持多组匹配，英文忽略大小写
+    pass_keywords = pd.Series(False, index=df_unique.index)
+    keyword_group_results = [] # 存储 (df, group_name)
+
+    if KEYWORDS_FILTER:
+        for group_name, keywords in KEYWORDS_FILTER.items():
+            if not keywords: continue
+            # 拼接组内关键词正则表达式
+            pattern = '|'.join([re.escape(str(k)) for k in keywords])
+            # case=False 实现忽略大小写
+            mask = df_unique['正文'].str.contains(pattern, case=False, na=False)
+            pass_keywords = pass_keywords | mask
+            
+            if mask.any():
+                kw_df = df_unique[mask].copy()
+                # 预先清理辅助列
+                for col in ['字数', '摘要']:
+                    if col in kw_df.columns:
+                        kw_df.drop(columns=[col], inplace=True, errors='ignore')
+                keyword_group_results.append((kw_df, group_name))
+    
+    condition = pass_normal | pass_super_likes | pass_super_comments | pass_keywords
     
     filtered_df = df_unique[condition].copy()
     rejected_df = df_unique[~condition].copy() 
     
     # 移除辅助列并准备保存
     for temp_df in [filtered_df, rejected_df, same_df]:
+        if temp_df.empty: continue
         if '字数' in temp_df.columns:
             temp_df.drop(columns=['字数'], inplace=True, errors='ignore')
         if '摘要' in temp_df.columns:
@@ -212,13 +238,19 @@ def filter_csv(file_path, min_likes, min_comments, min_length, super_likes=None,
         same_df.to_csv(p, index=False, encoding='utf-8-sig')
         print(f"{YELLOW}[!] 发现 {len(same_df)} 条重复 ID 项 (已保留最长正文版本)。重复项保存至: {p}{WHITE}")
 
+    # 保存 4: 为每一组关键词单独保存文件
+    for kw_df, kw_str in keyword_group_results:
+        p = os.path.join(output_dir, f"{name}_KW_{kw_str}{ext}")
+        kw_df.to_csv(p, index=False, encoding='utf-8-sig')
+        print(f"{CYAN}[+] 关键词组 [{kw_str}] 匹配成功：{len(kw_df)} 条命中。保存至: {p}{WHITE}")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="雪球帖子数据综合过滤与分析工具")
     parser.add_argument("file", help="CSV 文件路径")
-    parser.add_argument("-l", "--likes", type=int, default=0)
-    parser.add_argument("-c", "--comments", type=int, default=0)
-    parser.add_argument("-len", "--length", type=int, default=0)
-    parser.add_argument("-sl", "--super-likes", type=int)
-    parser.add_argument("-sc", "--super-comments", type=int)
+    parser.add_argument("-l", "--likes", type=int, default=DEFAULT_MIN_LIKES)
+    parser.add_argument("-c", "--comments", type=int, default=DEFAULT_MIN_COMMENTS)
+    parser.add_argument("-len", "--length", type=int, default=DEFAULT_MIN_LENGTH)
+    parser.add_argument("-sl", "--super-likes", type=int, default=DEFAULT_SUPER_LIKES)
+    parser.add_argument("-sc", "--super-comments", type=int, default=DEFAULT_SUPER_COMMENTS)
     args = parser.parse_args()
     filter_csv(args.file, args.likes, args.comments, args.length, args.super_likes, args.super_comments)
