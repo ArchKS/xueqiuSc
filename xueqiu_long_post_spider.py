@@ -148,26 +148,6 @@ class XueqiuLongPostSpider:
 
         return None
 
-    def append_raw_json(self, data, page_no):
-        """将每页原始 JSON 追加保存到 json 目录。"""
-        if not data:
-            return
-        json_dir = 'json'
-        if not os.path.exists(json_dir):
-            os.makedirs(json_dir)
-
-        file_path = os.path.join(json_dir, f'xueqiu_raw_{self.username}.jsonl')
-        record = {
-            'page': page_no,
-            'user_id': self.user_id,
-            'username': self.username,
-            'saved_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'data': data,
-        }
-        with open(file_path, 'a', encoding='utf-8') as f:
-            f.write(json.dumps(record, ensure_ascii=False))
-            f.write('\n')
-
     def fetch_detail(self, url, post_date):
         """访问帖子详情页获取完整正文"""
         fetch_start = time.time()
@@ -222,10 +202,6 @@ class XueqiuLongPostSpider:
         all_data = []
         job_start = time.time()
         
-        # 确保 json 目录存在
-        if not os.path.exists("json"):
-            os.makedirs("json")
-        
         if existing_ids is None:
             existing_ids = set()
             
@@ -234,6 +210,7 @@ class XueqiuLongPostSpider:
         actual_max_page = 0
         total_expected = 0
         last_id = None # 用于 max_id 分页
+        last_page_first_id = None # 用于验证页面是否更新
 
         while current_page <= max_page_limit:
             # 构造 URL，如果不是第一页则带上 max_id (雪球更推荐的分页方式，更稳定)
@@ -284,11 +261,15 @@ class XueqiuLongPostSpider:
                     time.sleep(1)
                 
                 if res_data and 'statuses' in res_data:
-                    # 保存 JSON 到分页文件
-                    json_file = os.path.join("json", f"page_{current_page}.json")
-                    with open(json_file, 'w', encoding='utf-8') as f:
-                        json.dump(res_data, f, ensure_ascii=False, indent=4)
-                    print(f"{GREEN}[+] 已保存第 {current_page} 页 JSON 到 {json_file}{RESET}")
+                    statuses = res_data['statuses']
+                    if statuses:
+                        current_first_id = str(statuses[0].get('id'))
+                        if current_page > 1 and current_first_id == last_page_first_id:
+                            print(f"{YELLOW}[!] 警告：第 {current_page} 页获取到的数据与上一页完全一致，可能是翻页失效或缓存，正在重试...{RESET}")
+                            time.sleep(5)
+                            continue
+                        last_page_first_id = current_first_id
+                    
                     break
                 else:
                     print(f"{RED}[-] 第 {current_page} 页获取失败 (尝试 {attempt+1}/{max_retries})，等待重试...{RESET}")
@@ -299,13 +280,6 @@ class XueqiuLongPostSpider:
                     print(f"{RED}[-] 第 {current_page} 页跳过，继续下一页。{RESET}")
                     current_page += 1
                     continue
-
-                # 追加保存原始 JSON，便于排查接口返回差异
-                try:
-                    self.append_raw_json(res_data, current_page)
-                    print(f"{GREEN}[+] 已追加保存第 {current_page} 页原始 JSON 到 json 目录{RESET}")
-                except Exception as save_e:
-                    print(f"{RED}[!] 保存第 {current_page} 页原始 JSON 失败: {save_e}{RESET}")
                 
                 # 自动检测最大页码
                 if current_page == start_page:
@@ -418,6 +392,7 @@ class XueqiuLongPostSpider:
 
                     all_data.append(item)
                     page_data.append(item)
+                    existing_ids.add(post_id) # 立即加入已采集 ID 集合，防止本会话翻页回弹导致重复抓取
                 
                 print(f"\n{GREEN}[+] 第 {current_page} 页处理完成，当前累计 {len(all_data)} 条{RESET}")
                 
@@ -428,7 +403,23 @@ class XueqiuLongPostSpider:
                     cols_to_save = ['ID', '发布时间', '点赞数', '评论数', '转发数', '页码', '链接', '摘要', '正文']
                     page_df = page_df[[c for c in cols_to_save if c in page_df.columns]]
                     page_df.to_csv(filename, mode='a', header=not os.path.exists(filename), index=False, encoding='utf-8-sig')
-                    print(f"{GREEN}[+] 已追加 {len(page_data)} 条记录到文件{RESET}")
+                    
+                    # 计算耗时与 ETA
+                    elapsed = time.time() - job_start
+                    pages_done = current_page - start_page + 1
+                    avg_time_per_page = elapsed / pages_done
+                    remaining_pages = max(0, max_page_limit - current_page)
+                    
+                    eta_seconds = remaining_pages * avg_time_per_page
+                    total_seconds = elapsed + eta_seconds
+                    
+                    def format_hms(s):
+                        h, m = divmod(int(s), 3600)
+                        m, s = divmod(m, 60)
+                        return f"{h:02d}:{m:02d}:{s:02d}" if h > 0 else f"{m:02d}:{s:02d}"
+
+                    progress_time = f"{format_hms(eta_seconds)} / {format_hms(total_seconds)}"
+                    print(f"{GREEN}[+] 已追加 {len(page_data)} 条记录到文件 | 预估剩余/总计: {progress_time}{RESET}")
                 
                 current_page += 1
                 
@@ -450,15 +441,6 @@ class XueqiuLongPostSpider:
                 os.makedirs("data")
             filename = os.path.join("data", f"{self.username}.csv")
 
-            # 每次运行前清空该用户旧的原始 jsonl，避免多次运行结果混在一起
-            json_dir = 'json'
-            if not os.path.exists(json_dir):
-                os.makedirs(json_dir)
-            raw_json_file = os.path.join(json_dir, f'xueqiu_raw_{self.username}.jsonl')
-            if os.path.exists(raw_json_file):
-                os.remove(raw_json_file)
-                print(f"{GREEN}[+] 已清空旧的原始 JSON 文件: {raw_json_file}{RESET}")
-            
             # 加载现有数据用于去重
             existing_ids = set()
             if os.path.exists(filename):

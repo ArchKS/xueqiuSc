@@ -22,15 +22,15 @@ KEYWORDS_FILTER = {
 
 # ================= 默认过滤阈值配置 =================
 DEFAULT_MIN_LIKES = 1        # 默认最小点赞
-DEFAULT_MIN_COMMENTS = 1     # 默认最小评论
+DEFAULT_MIN_COMMENTS = 1     # 1 默认最小评论
 DEFAULT_MIN_LENGTH = 10       # 默认最小字数
 DEFAULT_SUPER_LIKES = None   # 默认超级点赞阈值
 DEFAULT_SUPER_COMMENTS = None # 默认超级评论阈值
 
 # ================= 默认测试账号配置 =================
 # 当直接运行 spider 文件进行测试时，使用的默认用户名和 ID
-DEFAULT_USERNAME = "KeepSlowly"
-DEFAULT_USER_ID = "2287364713"
+DEFAULT_USERNAME = "柯中"
+DEFAULT_USER_ID = "5243796549"
 
 
 # ================= 爬取行为配置 =================
@@ -38,4 +38,16 @@ DEFAULT_USER_ID = "2287364713"
 # None : 抓取所有短贴（包含转发），使用 UI 模式引擎 (XueqiuShortPostSpider)
 # 0    : 只抓取原发短贴，使用 UI 模式引擎 (XueqiuShortPostSpider)
 # 2    : 只抓取长贴 (专栏文章)，使用 API 模式引擎 (XueqiuLongPostSpider)
-TYPE_PARAM = 2
+TYPE_PARAM = None
+
+# ================= 并发爬取配置 =================
+# 控制同时开启的浏览器标签页（Tab）数量
+# 建议：3-5 之间。数字越大速度越快，但对电脑性能和反爬风险要求越高。
+MAX_WORKERS = 3
+
+# ================= 反爬策略配置 =================
+# 如果抓取到的正文字数为 0，是否判定为触发了验证码/滑块等反爬机制
+# 开启后 (True)，脚本会在此刻暂停，等待您在浏览器手动完成验证后按回车继续。
+# 关闭后 (False)，遇到字数为 0 将直接记录为空并跳过，不会中断爬虫流程。
+PAUSE_ON_EMPTY_CONTENT = False
+

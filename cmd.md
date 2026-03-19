@@ -9,6 +9,7 @@ python3 main.py 凝视三千弱水的深渊 9236758887
 python3 main.py 菜头日记Z 5266360866
 
 python3 main.py 狸哥很懒 1835829265
+python3 main.py 柯中 5243796549
 python3 main.py Conan的投资笔记 1830611415
 python3 main.py Elon翻开每一页 5739488179
 python3 main.py 石stone 5509299851

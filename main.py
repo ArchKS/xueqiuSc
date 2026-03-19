@@ -5,8 +5,7 @@ import sys
 import os
 from xueqiu_short_post_spider import XueqiuShortPostSpider
 from xueqiu_long_post_spider import XueqiuLongPostSpider
-from filter_csv import filter_csv
-from config import TYPE_PARAM, FILTER_REGEX, TOP_STOCKS_COUNT, TOP_POSTS_COUNT
+from config import TYPE_PARAM, FILTER_REGEX
 
 # 颜色常量
 GREEN = '\033[32m'
@@ -70,11 +69,9 @@ def main():
         spider.run(start_page=start_page, end_page=end_page)
     
     if os.path.exists(target_file):
-        print(f"\n{GREEN}[Step 2] 爬取完成，正在生成分析报告...{RESET}")
-        # 默认调用 filter_csv 不加过滤条件，仅用于展示综合分析报告
-        filter_csv(target_file, min_likes=0, min_comments=0, min_length=0)
+        print(f"\n{GREEN}[Step 2] 爬取完成！{RESET}")
     else:
-        print(f"\n{RED}[-] 错误: 未能找到生成的数据文件 {target_file}，分析取消。{RESET}")
+        print(f"\n{RED}[-] 错误: 未能找到生成的数据文件 {target_file}。{RESET}")
 
 if __name__ == "__main__":
     main()
