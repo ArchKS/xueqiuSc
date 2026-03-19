@@ -12,6 +12,21 @@ FILTER_REGEX = [
 TOP_STOCKS_COUNT = 20  # 关注领域显示的股票数量
 TOP_POSTS_COUNT = 3    # 最火爆发言显示的条数
 
+# ================= 关键词过滤配置 =================
+# 匹配到每一组中的任一关键词，则保留该记录 (组内 OR 逻辑)
+# 每组关键词会单独生成一个 CSV 文件，文件名使用字典的 Key
+KEYWORDS_FILTER = {
+    "美团": ["外卖", "美团", "闪购"],
+    "特斯拉": ["tsla", "特斯拉"]
+}
+
+# ================= 默认过滤阈值配置 =================
+DEFAULT_MIN_LIKES = 1        # 默认最小点赞
+DEFAULT_MIN_COMMENTS = 1     # 默认最小评论
+DEFAULT_MIN_LENGTH = 10       # 默认最小字数
+DEFAULT_SUPER_LIKES = None   # 默认超级点赞阈值
+DEFAULT_SUPER_COMMENTS = None # 默认超级评论阈值
+
 # ================= 默认测试账号配置 =================
 # 当直接运行 spider 文件进行测试时，使用的默认用户名和 ID
 DEFAULT_USERNAME = "KeepSlowly"
@@ -23,4 +38,4 @@ DEFAULT_USER_ID = "2287364713"
 # None : 抓取所有短贴（包含转发），使用 UI 模式引擎 (XueqiuShortPostSpider)
 # 0    : 只抓取原发短贴，使用 UI 模式引擎 (XueqiuShortPostSpider)
 # 2    : 只抓取长贴 (专栏文章)，使用 API 模式引擎 (XueqiuLongPostSpider)
-TYPE_PARAM = None
+TYPE_PARAM = 2
