@@ -50,15 +50,16 @@ python main.py 我無形 4925086612
 # 爬取指定页码并分析 (例如爬取前 2 页)
 python main.py KeepSlowly 2287364713 2
 
-#仅执行数据分析 (无需爬取)
-python main.py 用户名 用户ID -1
-
-# 直接运行分析脚本
-python analyze_user.py data/KeepSlowly.csv
 
 # 过滤本地 CSV 数据
 # 语法: python filter_csv.py <文件路径> [-l 最小点赞数] [-c 最小评论数] [-len 最小字数]
 python filter_csv.py data/KeepSlowly.csv -l 10 -len 100
-```
 
+
+# 目前：从多页跳转并发爬会有BUG
+# 目前爬虫在并发时，采用的是1、4、7；2、5、8；3、6、9的并发格式，但由于当页码超过10页后，底部跳转导航栏没有输入框了，导致爬虫无法跳转到指定页，帮我设置成，如果没找到输入框，则跳转到第一页然后再跳转到指定页
+
+
+python3 main.py 柯中 5243796549
+```
 

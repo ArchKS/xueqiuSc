@@ -3,6 +3,7 @@ warnings.simplefilter("ignore")
 
 import sys
 import os
+import io
 from xueqiu_short_post_spider import XueqiuShortPostSpider
 from xueqiu_long_post_spider import XueqiuLongPostSpider
 from config import TYPE_PARAM, FILTER_REGEX
@@ -14,12 +15,89 @@ RED = '\033[31m'
 BLUE = '\033[34m'
 RESET = '\033[0m'
 
-def main():
-    # 强制控制台输出使用 UTF-8，防止中文和特殊符号乱码
+
+class TeeStream:
+    def __init__(self, *streams):
+        self.streams = streams
+
+    def write(self, data):
+        for stream in self.streams:
+            stream.write(data)
+        return len(data)
+
+    def flush(self):
+        for stream in self.streams:
+            stream.flush()
+
+    def isatty(self):
+        return any(getattr(stream, 'isatty', lambda: False)() for stream in self.streams)
+
+
+def setup_logging():
+    if getattr(setup_logging, "_initialized", False):
+        return getattr(setup_logging, "_log_file", None)
+
     if sys.platform.startswith('win'):
-        import io
-        # 增加 line_buffering=True 解决 Windows 下输出缓存导致的延迟显示问题
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', line_buffering=True)
+        console_stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', line_buffering=True)
+        console_stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', line_buffering=True)
+    else:
+        console_stdout = sys.stdout
+        console_stderr = sys.stderr
+
+    setup_logging._console_stdout = console_stdout
+    setup_logging._console_stderr = console_stderr
+
+    log_path = os.path.join(os.getcwd(), "log.txt")
+    if os.path.exists(log_path):
+        os.remove(log_path)
+    log_file = open(log_path, "w", encoding="utf-8", buffering=1)
+
+    sys.stdout = TeeStream(console_stdout, log_file)
+    sys.stderr = TeeStream(console_stderr, log_file)
+
+    setup_logging._initialized = True
+    setup_logging._log_file = log_file
+    return log_file
+
+
+def teardown_logging():
+    if not getattr(setup_logging, "_initialized", False):
+        return
+
+    log_file = getattr(setup_logging, "_log_file", None)
+    current_stdout = sys.stdout
+    current_stderr = sys.stderr
+
+    try:
+        if current_stdout:
+            current_stdout.flush()
+    except Exception:
+        pass
+
+    try:
+        if current_stderr:
+            current_stderr.flush()
+    except Exception:
+        pass
+
+    sys.stdout = getattr(setup_logging, "_console_stdout", sys.__stdout__)
+    sys.stderr = getattr(setup_logging, "_console_stderr", sys.__stderr__)
+
+    if log_file:
+        try:
+            log_file.flush()
+        except Exception:
+            pass
+        try:
+            log_file.close()
+        except Exception:
+            pass
+
+    setup_logging._initialized = False
+    setup_logging._log_file = None
+
+def main():
+    setup_logging()
 
     if len(sys.argv) < 3:
         print("用法: python main.py <用户名> <用户ID> [最大页数] 或 [开始页] [结束页]")
@@ -74,4 +152,10 @@ def main():
         print(f"\n{RED}[-] 错误: 未能找到生成的数据文件 {target_file}。{RESET}")
 
 if __name__ == "__main__":
-    main()
+    setup_logging()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print(f"\n{YELLOW}[!] 已收到 Ctrl+C，任务已中断。{RESET}")
+    finally:
+        teardown_logging()

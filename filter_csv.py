@@ -6,7 +6,7 @@ import re
 from prettytable import PrettyTable
 from datetime import datetime
 from config import (
-    TOP_STOCKS_COUNT, TOP_POSTS_COUNT, KEYWORDS_FILTER,
+    TOP_STOCKS_COUNT, TOP_POSTS_COUNT, KEYWORDS_FILTER, FILTER_REGEX,
     DEFAULT_MIN_LIKES, DEFAULT_MIN_COMMENTS, DEFAULT_MIN_LENGTH,
     DEFAULT_SUPER_LIKES, DEFAULT_SUPER_COMMENTS
 )
@@ -171,10 +171,17 @@ def filter_csv(file_path, min_likes, min_comments, min_length, super_likes=None,
     pass_normal = (df_unique['点赞数'] >= min_likes) & (df_unique['评论数'] >= min_comments) & (df_unique['字数'] >= min_length)
     pass_super_likes = (df_unique['点赞数'] >= super_likes) if super_likes is not None else False
     pass_super_comments = (df_unique['评论数'] >= super_comments) if super_comments is not None else False
+    pass_filter_regex = pd.Series(False, index=df_unique.index)
     
     # 关键词过滤逻辑：支持多组匹配，英文忽略大小写
     pass_keywords = pd.Series(False, index=df_unique.index)
     keyword_group_results = [] # 存储 (df, group_name)
+
+    if FILTER_REGEX:
+        body_regex = '|'.join(f"(?:{pattern})" for pattern in FILTER_REGEX if pattern)
+        if body_regex:
+            # 命中 FILTER_REGEX 的正文会被排除，不进入保留结果
+            pass_filter_regex = df_unique['正文'].str.contains(body_regex, case=False, na=False, regex=True)
 
     if KEYWORDS_FILTER:
         for group_name, keywords in KEYWORDS_FILTER.items():
@@ -193,7 +200,7 @@ def filter_csv(file_path, min_likes, min_comments, min_length, super_likes=None,
                         kw_df.drop(columns=[col], inplace=True, errors='ignore')
                 keyword_group_results.append((kw_df, group_name))
     
-    condition = pass_normal | pass_super_likes | pass_super_comments | pass_keywords
+    condition = (pass_normal | pass_super_likes | pass_super_comments | pass_keywords) & (~pass_filter_regex)
     
     filtered_df = df_unique[condition].copy()
     rejected_df = df_unique[~condition].copy() 

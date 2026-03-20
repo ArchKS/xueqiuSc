@@ -334,9 +334,10 @@ class XueqiuLongPostSpider:
                     # 在输出中明确显示当前页码
                     progress_info = f"[P{current_page}/{actual_max_page} {idx:2d}/{total_in_page:2d}] (总:{items_done:3d})"
 
-                    if post_id in existing_ids:
-                        print(f"{progress_info} | \033[33m[跳过] {post_date} | 已存在于本地\033[0m")
-                        continue
+                    # 长文不去重
+                    # if post_id in existing_ids:
+                    #     print(f"{progress_info} | \033[33m[跳过] {post_date} {post_id} | 已存在于本地\033[0m")
+                    #     continue
                         
                     # 获取 API 里的原始正文
                     raw_text = status.get('text', '')

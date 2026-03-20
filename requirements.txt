@@ -4,3 +4,4 @@ DrissionPage
 colorama
 prettytable
 tqdm
+plyer
