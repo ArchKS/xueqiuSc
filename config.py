@@ -46,12 +46,12 @@ DEFAULT_USER_ID = "5243796549"
 # None : 抓取所有短贴（包含转发），使用 UI 模式引擎 (XueqiuShortPostSpider)
 # 0    : 只抓取原发短贴，使用 UI 模式引擎 (XueqiuShortPostSpider)
 # 2    : 只抓取长贴 (专栏文章)，使用 API 模式引擎 (XueqiuLongPostSpider)
-TYPE_PARAM = 2
+TYPE_PARAM = None
 
 # ================= 并发爬取配置 =================
 # 控制同时开启的浏览器标签页（Tab）数量
 # 建议：3-5 之间。数字越大速度越快，但对电脑性能和反爬风险要求越高。
-MAX_WORKERS = 2
+MAX_WORKERS = 4
 
 # ================= 并发分段模式配置 =================
 # 可选值:
