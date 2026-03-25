@@ -12,8 +12,8 @@ start_page="$3"
 end_page="$4"
 
 chunk_size=30
-# 睡眠 3 分钟
-sleep_seconds=180
+# 睡眠 10 分钟
+sleep_seconds=600
 
 if ! [[ "$start_page" =~ ^[0-9]+$ && "$end_page" =~ ^[0-9]+$ ]]; then
   echo "错误: start_page 和 end_page 必须是整数"
