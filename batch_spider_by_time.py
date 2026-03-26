@@ -10,7 +10,11 @@ import colorama
 from xueqiu_short_post_spider import XueqiuShortPostSpider
 from xueqiu_long_post_spider import XueqiuLongPostSpider
 import config
-from config import TYPE_PARAM, FILTER_REGEX, USER_LIST, TIME_CONFIG
+from config import (
+    TYPE_PARAM, FILTER_REGEX, USER_LIST, TIME_CONFIG,
+    DEFAULT_MIN_LIKES, DEFAULT_MIN_COMMENTS, DEFAULT_MIN_LENGTH,
+    DEFAULT_SUPER_LIKES, DEFAULT_SUPER_COMMENTS, DEFAULT_SUPER_LENGTH
+)
 
 # 强制在此脚本中只使用一个 Worker (单 Tab 模式)，避免批量爬取时开启过多页面
 config.MAX_WORKERS = 1
@@ -33,6 +37,29 @@ error_log_file = f"error_{current_time_str}.log"
 def log_error(message):
     with open(error_log_file, "a", encoding="utf-8") as f:
         f.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - ERROR - {message}\n")
+
+def clean_content(text):
+    """按照 filter_csv.py 中的方式清洗正文内容"""
+    if not text:
+        return ""
+    
+    # 1. 清理元数据 (雪球专栏作者信息等)
+    pattern = r'(来自.*?的雪球专栏)?\s*(来源\s*[：:]\s*.*?)?作者\s*[：:]\s*.*?（https://xueqiu\.com/.*?）\s*'
+    text = re.sub(pattern, '', text, flags=re.DOTALL)
+    
+    # 2. 处理转发链：保留第一个 //@ 之前的内容
+    text = re.split(r'\s*//\s*@', text, 1)[0].strip()
+    
+    # 3. 处理回复前缀：移除开头的 "回复@xxx: "
+    text = re.sub(r'^回复\s*@.*?[：:]\s*', '', text)
+    
+    # 4. 移除正文中的所有换行符 (\n 和 \r)，替换为空格
+    text = re.sub(r'[\r\n]+', ' ', text).strip()
+    
+    # 5. 彻底清理可能残留的空格
+    text = text.strip()
+    
+    return text
 
 def get_time_limits(config):
     mode = config.get("mode", "days")
@@ -140,7 +167,34 @@ class TimeLimitedShortSpider(XueqiuShortPostSpider):
                     df = df[df['dt_temp'] >= self.start_limit]
                     df = df.drop(columns=['dt_temp'])
                 
-                exclude_cols = ['点赞数', '评论数', '转发数', '摘要']
+                # 3. 数据过滤逻辑 (同步 filter_csv.py)
+                # a. 先清洗正文以便准确计算字数
+                if '正文' in df.columns:
+                    df['正文'] = df['正文'].fillna('').apply(clean_content)
+                    df['字数'] = df['正文'].apply(len)
+                else:
+                    df['字数'] = 0
+
+                # b. 转换互动数值
+                for col in ['点赞数', '评论数']:
+                    if col in df.columns:
+                        df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+                    else:
+                        df[col] = 0
+
+                # c. 应用门槛
+                pass_normal = (df['点赞数'] >= DEFAULT_MIN_LIKES) & \
+                              (df['评论数'] >= DEFAULT_MIN_COMMENTS) & \
+                              (df['字数'] >= DEFAULT_MIN_LENGTH)
+                
+                pass_super_likes = (df['点赞数'] >= DEFAULT_SUPER_LIKES) if DEFAULT_SUPER_LIKES is not None else False
+                pass_super_comments = (df['评论数'] >= DEFAULT_SUPER_COMMENTS) if DEFAULT_SUPER_COMMENTS is not None else False
+                pass_super_length = (df['字数'] >= DEFAULT_SUPER_LENGTH) if DEFAULT_SUPER_LENGTH is not None else False
+                
+                df = df[pass_normal | pass_super_likes | pass_super_comments | pass_super_length]
+
+                # 4. 精简列：去掉转赞评和摘要
+                exclude_cols = ['点赞数', '评论数', '转发数', '摘要', '字数']
                 df = df[[c for c in df.columns if c not in exclude_cols]]
                 
                 if '博主' not in df.columns:
@@ -252,26 +306,48 @@ class TimeLimitedLongSpider(XueqiuLongPostSpider):
                 if self.end_limit and post_dt > self.end_limit: continue
                 if post_id in existing_ids: continue
                 
+                # 获取互动数据
+                likes = status.get('like_count') or 0
+                comments = status.get('reply_count') or 0
+                
                 raw_text = status.get('text', '')
                 can_expand = status.get('expend', False)
+                link = f"https://xueqiu.com{status.get('target')}"
+                
+                # 获取并清洗正文
+                if can_expand and link and 'xueqiu.com' in link:
+                    full_content, _ = self.fetch_detail(link, formatted_date)
+                    content = clean_content(full_content if full_content else self.clean_html(raw_text))
+                else:
+                    content = clean_content(self.clean_html(raw_text))
+
+                # 数据过滤 (同步 filter_csv.py)
+                content_len = len(content)
+                pass_normal = (likes >= DEFAULT_MIN_LIKES) and \
+                              (comments >= DEFAULT_MIN_COMMENTS) and \
+                              (content_len >= DEFAULT_MIN_LENGTH)
+                
+                pass_super_likes = (likes >= DEFAULT_SUPER_LIKES) if DEFAULT_SUPER_LIKES is not None else False
+                pass_super_comments = (comments >= DEFAULT_SUPER_COMMENTS) if DEFAULT_SUPER_COMMENTS is not None else False
+                pass_super_length = (content_len >= DEFAULT_SUPER_LENGTH) if DEFAULT_SUPER_LENGTH is not None else False
+                
+                if not (pass_normal or pass_super_likes or pass_super_comments or pass_super_length):
+                    print(f"  [!] 过滤跳过: {formatted_date} | 赞:{likes} 评:{comments} 字:{content_len}")
+                    continue
+
                 item = {
                     '博主': self.username,
                     'ID': post_id,
                     '发布时间': formatted_date,
                     '页码': f"{current_page}",
-                    '链接': f"https://xueqiu.com{status.get('target')}",
+                    '链接': link,
+                    '正文': content
                 }
-                
-                if can_expand and item['链接'] and 'xueqiu.com' in item['链接']:
-                    full_content, _ = self.fetch_detail(item['链接'], formatted_date)
-                    item['正文'] = full_content if full_content else self.clean_html(raw_text)
-                else:
-                    item['正文'] = self.clean_html(raw_text)
 
                 page_data.append(item)
                 all_data.append(item)
                 existing_ids.add(post_id)
-                print(f"  [+] 已处理: {formatted_date} | {item['正文'][:20]}...")
+                print(f"  [+] 已通过: {formatted_date} | {item['正文'][:20]}...")
 
             if page_data and actual_filename:
                 cols_to_save = ['博主', 'ID', '发布时间', '页码', '链接', '正文']

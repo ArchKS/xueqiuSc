@@ -8,7 +8,8 @@ from datetime import datetime
 from config import (
     TOP_STOCKS_COUNT, TOP_POSTS_COUNT, KEYWORDS_FILTER, FILTER_REGEX,
     DEFAULT_MIN_LIKES, DEFAULT_MIN_COMMENTS, DEFAULT_MIN_LENGTH,
-    DEFAULT_SUPER_LIKES, DEFAULT_SUPER_COMMENTS, SHOW_ANALYSIS_REPORT
+    DEFAULT_SUPER_LIKES, DEFAULT_SUPER_COMMENTS, SHOW_ANALYSIS_REPORT,
+    DEFAULT_SUPER_LENGTH
 )
 
 # 初始化 colorama 支持彩色输出
@@ -22,7 +23,7 @@ BLUE = colorama.Fore.BLUE
 WHITE = colorama.Fore.WHITE
 BOLD = colorama.Style.BRIGHT
 
-def filter_csv(file_path, min_likes, min_comments, min_length, super_likes=None, super_comments=None):
+def filter_csv(file_path, min_likes, min_comments, min_length, super_likes=None, super_comments=None, super_length=None):
     if not os.path.exists(file_path):
         print(f"{RED}[-] 错误: 文件 '{file_path}' 不存在。")
         return
@@ -174,6 +175,7 @@ def filter_csv(file_path, min_likes, min_comments, min_length, super_likes=None,
     pass_normal = (df_unique['点赞数'] >= min_likes) & (df_unique['评论数'] >= min_comments) & (df_unique['字数'] >= min_length)
     pass_super_likes = (df_unique['点赞数'] >= super_likes) if super_likes is not None else False
     pass_super_comments = (df_unique['评论数'] >= super_comments) if super_comments is not None else False
+    pass_super_length = (df_unique['字数'] >= super_length) if super_length is not None else False
     pass_filter_regex = pd.Series(False, index=df_unique.index)
     
     # 关键词过滤逻辑：支持多组匹配，英文忽略大小写
@@ -203,7 +205,7 @@ def filter_csv(file_path, min_likes, min_comments, min_length, super_likes=None,
                         kw_df.drop(columns=[col], inplace=True, errors='ignore')
                 keyword_group_results.append((kw_df, group_name))
     
-    condition = (pass_normal | pass_super_likes | pass_super_comments | pass_keywords) & (~pass_filter_regex)
+    condition = (pass_normal | pass_super_likes | pass_super_comments | pass_super_length | pass_keywords) & (~pass_filter_regex)
     
     filtered_df = df_unique[condition].copy()
     rejected_df = df_unique[~condition].copy() 
@@ -228,6 +230,7 @@ def filter_csv(file_path, min_likes, min_comments, min_length, super_likes=None,
     if min_length > 0: suffix_parts.append(f"Len{min_length}")
     if super_likes: suffix_parts.append(f"SL{super_likes}")
     if super_comments: suffix_parts.append(f"SC{super_comments}")
+    if super_length: suffix_parts.append(f"SLen{super_length}")
     suffix = "_" + "_".join(suffix_parts) if suffix_parts else "_all"
 
     # 保存 1: 满足条件的唯一记录
@@ -263,5 +266,6 @@ if __name__ == "__main__":
     parser.add_argument("-len", "--length", type=int, default=DEFAULT_MIN_LENGTH)
     parser.add_argument("-sl", "--super-likes", type=int, default=DEFAULT_SUPER_LIKES)
     parser.add_argument("-sc", "--super-comments", type=int, default=DEFAULT_SUPER_COMMENTS)
+    parser.add_argument("-slen", "--super-length", type=int, default=DEFAULT_SUPER_LENGTH)
     args = parser.parse_args()
-    filter_csv(args.file, args.likes, args.comments, args.length, args.super_likes, args.super_comments)
+    filter_csv(args.file, args.likes, args.comments, args.length, args.super_likes, args.super_comments, args.super_length)

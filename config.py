@@ -37,6 +37,7 @@ DEFAULT_MIN_COMMENTS = 0     # 1 默认最小评论
 DEFAULT_MIN_LENGTH = 10       # 默认最小字数
 DEFAULT_SUPER_LIKES = None   # 默认超级点赞阈值
 DEFAULT_SUPER_COMMENTS = None # 默认超级评论阈值
+DEFAULT_SUPER_LENGTH = None   # 默认超级字数阈值 (大于此字数则无视点赞/评论直接通过)
 
 # ================= 默认测试账号配置 =================
 # 当直接运行 spider 文件进行测试时，使用的默认用户名和 ID
@@ -47,14 +48,14 @@ DEFAULT_USER_ID = "5243796549"
 # ================= 批量爬取配置 (batch_spider_by_time.py) =================
 # 待爬取的博主列表
 USER_LIST = [
-    {"username": "超级鹿鼎公", "userid": "8790885129"},
-    {"username": "黑色面包", "userid": "9507152383"},
-    {"username": "KeepSlowly", "userid": "2287364713"},
-    {"username": "柯中", "userid": "5243796549"},
-    {"username": "PaulWu", "userid": "1965894836"},
-    {"username": "凝视三千弱水的深渊", "userid": "9236758887"},
+    # {"username": "超级鹿鼎公", "userid": "8790885129"},
+    # {"username": "黑色面包", "userid": "9507152383"},
+    # {"username": "KeepSlowly", "userid": "2287364713"},
+    # {"username": "柯中", "userid": "5243796549"},
+    # {"username": "PaulWu", "userid": "1965894836"},
+    # {"username": "凝视三千弱水的深渊", "userid": "9236758887"},
     {"username": "雪月霜", "userid": "1505944393"},
-    {"username": "史诗级韭菜", "userid": "2214010836"},
+    # {"username": "史诗级韭菜", "userid": "2214010836"},
 ]
 
 # 时间范围配置
@@ -63,7 +64,7 @@ USER_LIST = [
 # 如果是 'days'/'months'/'years'，需提供 value
 TIME_CONFIG = {
     "mode": "days",    # 默认近 30 天
-    "value": 3, 
+    "value": 1, 
     "start_date": None, 
     "end_date": None
 }
