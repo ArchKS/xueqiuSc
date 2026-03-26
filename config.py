@@ -26,9 +26,9 @@ SHOW_ANALYSIS_REPORT = False  # 是否显示雪球数据综合分析报告
 # 匹配到每一组中的任一关键词，则保留该记录 (组内 OR 逻辑)
 # 每组关键词会单独生成一个 CSV 文件，文件名使用字典的 Key
 KEYWORDS_FILTER = {
-    "煤炭": ["煤", "神华", "陕煤","淮北"],
-    "电力": ["火电", "发电", "电力","华能","川投","黔源","恒源","中石化冠德"],
-    "水泥": ["塔牌", "海螺", "电力","华能"],
+    # "煤炭": ["煤", "神华", "陕煤","淮北"],
+    # "电力": ["火电", "发电", "电力","华能","川投","黔源","恒源","中石化冠德"],
+    # "水泥": ["塔牌", "海螺", "电力","华能"],
 }
 
 # ================= 默认过滤阈值配置 =================
@@ -43,6 +43,30 @@ DEFAULT_SUPER_COMMENTS = None # 默认超级评论阈值
 DEFAULT_USERNAME = "柯中"
 DEFAULT_USER_ID = "5243796549"
 
+
+# ================= 批量爬取配置 (batch_spider_by_time.py) =================
+# 待爬取的博主列表
+USER_LIST = [
+    {"username": "超级鹿鼎公", "userid": "8790885129"},
+    {"username": "黑色面包", "userid": "9507152383"},
+    {"username": "KeepSlowly", "userid": "2287364713"},
+    {"username": "柯中", "userid": "5243796549"},
+    {"username": "PaulWu", "userid": "1965894836"},
+    {"username": "凝视三千弱水的深渊", "userid": "9236758887"},
+    {"username": "雪月霜", "userid": "1505944393"},
+    {"username": "史诗级韭菜", "userid": "2214010836"},
+]
+
+# 时间范围配置
+# mode 支持: 'days', 'months', 'years', 'range'
+# 如果是 'range'，需提供 start_date 和 end_date (格式: 'YYYY-MM-DD')
+# 如果是 'days'/'months'/'years'，需提供 value
+TIME_CONFIG = {
+    "mode": "days",    # 默认近 30 天
+    "value": 3, 
+    "start_date": None, 
+    "end_date": None
+}
 
 # ================= 爬取行为配置 =================
 # TYPE_PARAM 控制抓取类型与使用的引擎：
