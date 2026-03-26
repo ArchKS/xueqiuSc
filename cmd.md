@@ -8,11 +8,13 @@ python3 main.py 柯中 5243796549
 python3 main.py PaulWuZ 1965894836
 python3 main.py 凝视三千弱水的深渊 9236758887
 python3 main.py 超级鹿鼎公 8790885129 10 10
-
-<!-- python3 main.py 菜头日记Z 5266360866 -->
+python3 main.py 雪月霜 1505944393
+sh batch_run_ranges.sh 史诗级韭菜 2214010836 1 16
 sh batch_run_ranges.sh 菜头日记Z 5266360866 1 224
 
-sh batch_run_ranges.sh 史诗级韭菜 2214010836 1 16
+
+Todo：
+sh batch_run_ranges.sh 管我财 9650668145 1 1827
 
 python3 main.py 狸哥很懒 1835829265
 python3 main.py Conan的投资笔记 1830611415
@@ -24,7 +26,7 @@ python3 main.py 胜和 2612090930
 python3 main.py 陸陸陸三率投资 3579186337
 
 python3 main.py metalslime 2292705444
-python3 main.py 雪月霜 1505944393
+
 
 
 
