@@ -8,7 +8,7 @@ from datetime import datetime
 from config import (
     TOP_STOCKS_COUNT, TOP_POSTS_COUNT, KEYWORDS_FILTER, FILTER_REGEX,
     DEFAULT_MIN_LIKES, DEFAULT_MIN_COMMENTS, DEFAULT_MIN_LENGTH,
-    DEFAULT_SUPER_LIKES, DEFAULT_SUPER_COMMENTS
+    DEFAULT_SUPER_LIKES, DEFAULT_SUPER_COMMENTS, SHOW_ANALYSIS_REPORT
 )
 
 # 初始化 colorama 支持彩色输出
@@ -33,7 +33,8 @@ def filter_csv(file_path, min_likes, min_comments, min_length, super_likes=None,
         df = pd.read_csv(file_path, encoding='gb18030')
 
     original_count = len(df)
-    print(f"{CYAN}[*] 成功加载 {file_path}，共 {original_count} 条记录。{WHITE}")
+    if SHOW_ANALYSIS_REPORT:
+        print(f"{CYAN}[*] 成功加载 {file_path}，共 {original_count} 条记录。{WHITE}")
 
     # 1. 数据基础清洗
     df['点赞数'] = pd.to_numeric(df['点赞数'], errors='coerce').fillna(0)
@@ -75,90 +76,92 @@ def filter_csv(file_path, min_likes, min_comments, min_length, super_likes=None,
     # 重新计算字数辅助列，因为上面的清洗可能会缩短正文长度
     df['字数'] = df['正文'].apply(len)
     
-    # 3. 计算深度与影响力指标
-    avg_len = df['字数'].mean()
-    median_len = df['字数'].median()
-    long_article_count = len(df[df['字数'] > 1000])
-    long_article_ratio = (long_article_count / original_count) * 100
+    if SHOW_ANALYSIS_REPORT:
+        # 3. 计算深度与影响力指标
+        avg_len = df['字数'].mean()
+        median_len = df['字数'].median()
+        long_article_count = len(df[df['字数'] > 1000])
+        long_article_ratio = (long_article_count / original_count) * 100
 
-    avg_likes = df['点赞数'].mean()
-    median_likes = df['点赞数'].median()
-    engagement_efficiency = (df['点赞数'].sum() / df['字数'].sum()) * 1000 if df['字数'].sum() > 0 else 0
+        avg_likes = df['点赞数'].mean()
+        median_likes = df['点赞数'].median()
+        engagement_efficiency = (df['点赞数'].sum() / df['字数'].sum()) * 1000 if df['字数'].sum() > 0 else 0
 
-    # 4. 风格统计：提取提及的股票
-    stock_pattern = r'\$([^$()]+)(?:\(([^$]+)\))?\$'
-    all_stocks = []
-    for text in df['正文']:
-        matches = re.findall(stock_pattern, text)
-        for m in matches:
-            all_stocks.append(m[0].strip())
-    stock_counts = pd.Series(all_stocks).value_counts().head(TOP_STOCKS_COUNT)
+        # 4. 风格统计：提取提及的股票
+        stock_pattern = r'\$([^$()]+)(?:\(([^$]+)\))?\$'
+        all_stocks = []
+        for text in df['正文']:
+            matches = re.findall(stock_pattern, text)
+            for m in matches:
+                all_stocks.append(m[0].strip())
+        stock_counts = pd.Series(all_stocks).value_counts().head(TOP_STOCKS_COUNT)
 
-    # 5. 输出综合分析报告
-    header = f" {BOLD}{CYAN}[ 雪球数据综合分析报告: {os.path.basename(file_path)} ]{WHITE} "
-    print("\n" + f"{CYAN}═{WHITE}" * 70)
-    print(f" {header.center(75)} ")
-    print(f"{CYAN}═{WHITE}" * 70)
-    print(f"  {YELLOW}[*]{WHITE} 分析范围: {GREEN}{time_range_str}{WHITE} ({days_diff}天)")
-    print(f"  {YELLOW}[*]{WHITE} 总发言数: {GREEN}{original_count}{WHITE} 篇 (约 {GREEN}{post_frequency:.2f}{WHITE} 篇/天)")
-    print(f"{CYAN}-{WHITE}" * 70)
+        # 5. 输出综合分析报告
+        header = f" {BOLD}{CYAN}[ 雪球数据综合分析报告: {os.path.basename(file_path)} ]{WHITE} "
+        print("\n" + f"{CYAN}═{WHITE}" * 70)
+        print(f" {header.center(75)} ")
+        print(f"{CYAN}═{WHITE}" * 70)
+        print(f"  {YELLOW}[*]{WHITE} 分析范围: {GREEN}{time_range_str}{WHITE} ({days_diff}天)")
+        print(f"  {YELLOW}[*]{WHITE} 总发言数: {GREEN}{original_count}{WHITE} 篇 (约 {GREEN}{post_frequency:.2f}{WHITE} 篇/天)")
+        print(f"{CYAN}-{WHITE}" * 70)
 
-    print(f"\n{MAGENTA}[ 1. 内容深度与影响力 ]{WHITE}")
-    print(f"  + 平均字数: {avg_len:.1f} | 字数中位数: {median_len:.1f}")
-    print(f"  + 千字长文: {long_article_count} 篇 (占比 {long_article_ratio:.1f}%)")
-    print(f"  + 平均点赞: {avg_likes:.1f} | 点赞中位数: {median_likes:.1f}")
-    print(f"  + 互动效率: {engagement_efficiency:.2f} 次点赞/每千字")
-    
-    status_label = f'{CYAN}深度型选手{WHITE}' if long_article_ratio > 10 else f'{YELLOW}短评/碎片化选手{WHITE}'
-    influence_label = f'{CYAN}高质量博主{WHITE}' if avg_likes > 20 else f'{YELLOW}普通用户{WHITE}'
-    print(f"  {RED}[!] 用户画像: >>> {status_label} | {influence_label} {RED}<<<{WHITE}")
-
-    print(f"\n{MAGENTA}[ 2. 数据分布情况 ]{WHITE}")
-    def print_dist(series, label):
-        print(f"\n{YELLOW}>> {label} 分布:{WHITE}")
-        if label == "正文字数":
-            custom_bins = [-1, 20, 100, 300, 1000, float('inf')]
-            custom_labels = ["0 - 20", "21 - 100", "101 - 300", "301 - 1000", "1000+"]
-        else:
-            custom_bins = [-1, 20, 100, 300, float('inf')]
-            custom_labels = ["0 - 20", "21 - 100", "101 - 300", "300+"]
+        print(f"\n{MAGENTA}[ 1. 内容深度与影响力 ]{WHITE}")
+        print(f"  + 平均字数: {avg_len:.1f} | 字数中位数: {median_len:.1f}")
+        print(f"  + 千字长文: {long_article_count} 篇 (占比 {long_article_ratio:.1f}%)")
+        print(f"  + 平均点赞: {avg_likes:.1f} | 点赞中位数: {median_likes:.1f}")
+        print(f"  + 互动效率: {engagement_efficiency:.2f} 次点赞/每千字")
         
-        bins = pd.cut(series, bins=custom_bins, labels=custom_labels)
-        dist = bins.value_counts().sort_index()
-        for interval_label, count in dist.items():
-            pct = (count / len(series)) * 100
-            bar = "■" * int(pct / 2)
-            print(f"   {str(interval_label).ljust(12)} | {count:4d} 篇 ({pct:4.1f}%) {bar}")
+        status_label = f'{CYAN}深度型选手{WHITE}' if long_article_ratio > 10 else f'{YELLOW}短评/碎片化选手{WHITE}'
+        influence_label = f'{CYAN}高质量博主{WHITE}' if avg_likes > 20 else f'{YELLOW}普通用户{WHITE}'
+        print(f"  {RED}[!] 用户画像: >>> {status_label} | {influence_label} {RED}<<<{WHITE}")
 
-    print_dist(df['点赞数'], "点赞数")
-    print_dist(df['评论数'], "评论数")
-    print_dist(df['字数'], "正文字数")
+        print(f"\n{MAGENTA}[ 2. 数据分布情况 ]{WHITE}")
+        def print_dist(series, label):
+            print(f"\n{YELLOW}>> {label} 分布:{WHITE}")
+            if label == "正文字数":
+                custom_bins = [-1, 20, 100, 300, 1000, float('inf')]
+                custom_labels = ["0 - 20", "21 - 100", "101 - 300", "301 - 1000", "1000+"]
+            else:
+                custom_bins = [-1, 20, 100, 300, float('inf')]
+                custom_labels = ["0 - 20", "21 - 100", "101 - 300", "300+"]
+            
+            bins = pd.cut(series, bins=custom_bins, labels=custom_labels)
+            dist = bins.value_counts().sort_index()
+            for interval_label, count in dist.items():
+                pct = (count / len(series)) * 100
+                bar = "■" * int(pct / 2)
+                print(f"   {str(interval_label).ljust(12)} | {count:4d} 篇 ({pct:4.1f}%) {bar}")
 
-    if not stock_counts.empty:
-        print(f"\n{MAGENTA}[ 3. 关注领域 (TOP {TOP_STOCKS_COUNT}) ]{WHITE}")
-        table = PrettyTable()
-        table.field_names = ["序号", "标的名称", "提及次数"]
-        for i, (stock, count) in enumerate(stock_counts.items(), 1):
-            table.add_row([f"{YELLOW}{i}{WHITE}", f"{GREEN}{stock}{WHITE}", f"{CYAN}{count}{WHITE}"])
-        print(table)
+        print_dist(df['点赞数'], "点赞数")
+        print_dist(df['评论数'], "评论数")
+        print_dist(df['字数'], "正文字数")
 
-    long_posts = df[df['字数'] > 1000].copy()
-    if not long_posts.empty:
-        print(f"\n{MAGENTA}[ 4. 千字长文清单 ]{WHITE}")
-        table = PrettyTable()
-        table.field_names = ["序号", "点赞", "评论", "转发", "预览 (前25字)", "链接"]
-        table.align["预览 (前25字)"] = "l"
-        for i, (idx, row) in enumerate(long_posts.iterrows(), 1):
-            preview = row['正文'][:25]
-            table.add_row([
-                f"{YELLOW}{i}{WHITE}", f"{int(row['点赞数'])}", f"{int(row['评论数'])}", 
-                f"{int(row['转发数'])}", f"{GREEN}{preview}...{WHITE}", f"{BLUE}{row['链接']}{WHITE}"
-            ])
-        print(table)
+        if not stock_counts.empty:
+            print(f"\n{MAGENTA}[ 3. 关注领域 (TOP {TOP_STOCKS_COUNT}) ]{WHITE}")
+            table = PrettyTable()
+            table.field_names = ["序号", "标的名称", "提及次数"]
+            for i, (stock, count) in enumerate(stock_counts.items(), 1):
+                table.add_row([f"{YELLOW}{i}{WHITE}", f"{GREEN}{stock}{WHITE}", f"{CYAN}{count}{WHITE}"])
+            print(table)
 
-    print(f"\n" + f"{CYAN}═{WHITE}" * 70 + "\n")
+        long_posts = df[df['字数'] > 1000].copy()
+        if not long_posts.empty:
+            print(f"\n{MAGENTA}[ 4. 千字长文清单 ]{WHITE}")
+            table = PrettyTable()
+            table.field_names = ["序号", "点赞", "评论", "转发", "预览 (前25字)", "链接"]
+            table.align["预览 (前25字)"] = "l"
+            for i, (idx, row) in enumerate(long_posts.iterrows(), 1):
+                preview = row['正文'][:25]
+                table.add_row([
+                    f"{YELLOW}{i}{WHITE}", f"{int(row['点赞数'])}", f"{int(row['评论数'])}", 
+                    f"{int(row['转发数'])}", f"{GREEN}{preview}...{WHITE}", f"{BLUE}{row['链接']}{WHITE}"
+                ])
+            print(table)
+
+        print(f"\n" + f"{CYAN}═{WHITE}" * 70 + "\n")
 
     # 6. ID 去重逻辑 (优先保留正文最长的版本)
+
     # 先按照 ID 和字数降序排序
     df = df.sort_values(by=['ID', '字数'], ascending=[True, False])
     # 标记重复项 (除了第一项/最长项以外的所有重复项)
@@ -243,7 +246,8 @@ def filter_csv(file_path, min_likes, min_comments, min_length, super_likes=None,
     if not same_df.empty:
         p = os.path.join(output_dir, f"{name}_same{suffix}{ext}")
         same_df.to_csv(p, index=False, encoding='utf-8-sig')
-        print(f"{YELLOW}[!] 发现 {len(same_df)} 条重复 ID 项 (已保留最长正文版本)。重复项保存至: {p}{WHITE}")
+        if SHOW_ANALYSIS_REPORT:
+            print(f"{YELLOW}[!] 发现 {len(same_df)} 条重复 ID 项 (已保留最长正文版本)。重复项保存至: {p}{WHITE}")
 
     # 保存 4: 为每一组关键词单独保存文件
     for kw_df, kw_str in keyword_group_results:
