@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ "$#" -ne 4 ]; then
-  echo "用法: bash batch_run_ranges.sh <username> <uid> <start_page> <end_page>"
+if [ "$#" -lt 4 ]; then
+  echo "用法: bash batch_run_ranges.sh <username> <uid> <start_page> <end_page> [type_param]"
   exit 1
 fi
 
@@ -10,6 +10,7 @@ username="$1"
 uid="$2"
 start_page="$3"
 end_page="$4"
+type_param="${5:-}"
 
 chunk_size=30
 # 睡眠 10 分钟
@@ -34,7 +35,11 @@ while [ "$current_start" -le "$end_page" ]; do
   fi
 
   echo "执行区间: ${current_start}-${current_end}"
-  python3 main.py "$username" "$uid" "$current_start" "$current_end"
+  if [ -n "$type_param" ]; then
+    python3 main.py "$username" "$uid" "$current_start" "$current_end" "--type=$type_param"
+  else
+    python3 main.py "$username" "$uid" "$current_start" "$current_end"
+  fi
 
   if [ "$current_end" -lt "$end_page" ]; then
     echo "当前区间完成，暂停 10 分钟..."

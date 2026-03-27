@@ -74,7 +74,19 @@ TIME_CONFIG = {
 # None : 抓取所有短贴（包含转发），使用 UI 模式引擎 (XueqiuShortPostSpider)
 # 0    : 只抓取原发短贴，使用 UI 模式引擎 (XueqiuShortPostSpider)
 # 2    : 只抓取长贴 (专栏文章)，使用 API 模式引擎 (XueqiuLongPostSpider)
-TYPE_PARAM = None
+import os
+# 从环境变量读取 TYPE_PARAM，支持 "0", "2", "none" (不区分大小写)
+env_type = os.environ.get("TYPE_PARAM")
+if env_type is not None:
+    if env_type.lower() == "none":
+        TYPE_PARAM = None
+    else:
+        try:
+            TYPE_PARAM = int(env_type)
+        except:
+            TYPE_PARAM = None # 默认回退
+else:
+    TYPE_PARAM = None
 
 # ================= 并发爬取配置 =================
 # 控制同时开启的浏览器标签页（Tab）数量

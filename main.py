@@ -6,7 +6,8 @@ import os
 import io
 from xueqiu_short_post_spider import XueqiuShortPostSpider
 from xueqiu_long_post_spider import XueqiuLongPostSpider
-from config import TYPE_PARAM, FILTER_REGEX
+import config
+from config import FILTER_REGEX
 
 # 颜色常量
 GREEN = '\033[32m'
@@ -99,23 +100,40 @@ def teardown_logging():
 def main():
     setup_logging()
 
-    if len(sys.argv) < 3:
-        print("用法: python main.py <用户名> <用户ID> [最大页数] 或 [开始页] [结束页]")
+    # 支持在命令行配置 TYPE_PARAM (--type=0, --type=2, --type=none)
+    # 此逻辑会覆盖 config.py 中的默认值或环境变量
+    args = []
+    for arg in sys.argv:
+        if arg.startswith("--type="):
+            try:
+                val = arg.split("=")[1]
+                if val.lower() == "none":
+                    config.TYPE_PARAM = None
+                else:
+                    config.TYPE_PARAM = int(val)
+                print(f"{BLUE}命令行配置: TYPE_PARAM = {config.TYPE_PARAM}{RESET}")
+            except (ValueError, IndexError):
+                print(f"{RED}[-] 错误: --type 必须指定数字值 (0 或 2) 或 none{RESET}")
+        else:
+            args.append(arg)
+
+    if len(args) < 3:
+        print("用法: python main.py <用户名> <用户ID> [最大页数] 或 [开始页] [结束页] [--type=0|2]")
         print("示例 (爬取全部): python main.py KeepSlowly 2287364713")
-        print("示例 (前5页): python main.py KeepSlowly 2287364713 5")
+        print("示例 (长贴/专栏): python main.py KeepSlowly 2287364713 --type=2")
         print("示例 (第3-10页): python main.py KeepSlowly 2287364713 3 10")
         print("示例 (仅分析): python main.py KeepSlowly 2287364713 -1")
         return
 
-    username = sys.argv[1]
-    uid = sys.argv[2]
+    username = args[1]
+    uid = args[2]
     start_page = 1
     end_page = None
     
     # 解析分页逻辑
-    if len(sys.argv) == 4:
+    if len(args) == 4:
         try:
-            val = int(sys.argv[3])
+            val = int(args[3])
             if val == -1:
                 start_page = -1 # 仅分析标志
             else:
@@ -123,10 +141,10 @@ def main():
                 print(f"{BLUE}设定抓取前 {end_page} 页数据{RESET}")
         except ValueError:
             print(f"{RED}[-] 错误: 参数必须是数字{RESET}")
-    elif len(sys.argv) >= 5:
+    elif len(args) >= 5:
         try:
-            start_page = int(sys.argv[3])
-            end_page = int(sys.argv[4])
+            start_page = int(args[3])
+            end_page = int(args[4])
             print(f"{BLUE}设定抓取范围: 第 {start_page} 页 到 第 {end_page} 页{RESET}")
         except ValueError:
             print(f"{RED}[-] 错误: 参数必须是数字{RESET}")
@@ -136,13 +154,13 @@ def main():
 
     # 如果不是仅分析模式 (-1)，则执行爬取
     if start_page != -1:
-        if TYPE_PARAM == 2:
+        if config.TYPE_PARAM == 2:
             print(f"\n{GREEN}[Step 1] 开始爬取雪球长贴(专栏): {username}({uid}) [API模式] ...{RESET}")
-            spider = XueqiuLongPostSpider(username, uid, type_param=TYPE_PARAM, filter_regex=FILTER_REGEX)
+            spider = XueqiuLongPostSpider(username, uid, type_param=config.TYPE_PARAM, filter_regex=FILTER_REGEX)
         else:
-            mode_desc = "原发" if TYPE_PARAM == 0 else "全部"
+            mode_desc = "原发" if config.TYPE_PARAM == 0 else "全部"
             print(f"\n{GREEN}[Step 1] 开始爬取雪球短贴({mode_desc}): {username}({uid}) [UI模式] ...{RESET}")
-            spider = XueqiuShortPostSpider(username, uid, type_param=TYPE_PARAM, filter_regex=FILTER_REGEX)
+            spider = XueqiuShortPostSpider(username, uid, type_param=config.TYPE_PARAM, filter_regex=FILTER_REGEX)
             
         spider.run(start_page=start_page, end_page=end_page)
     

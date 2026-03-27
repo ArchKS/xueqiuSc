@@ -499,10 +499,23 @@ class XueqiuLongPostSpider:
 if __name__ == "__main__":
     import sys
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    from config import DEFAULT_USERNAME, DEFAULT_USER_ID, FILTER_REGEX, TYPE_PARAM
+    import config
+    from config import DEFAULT_USERNAME, DEFAULT_USER_ID, FILTER_REGEX
     
+    # 支持命令行 --type=X
+    for arg in sys.argv:
+        if arg.startswith("--type="):
+            try:
+                val = arg.split("=")[1]
+                if val.lower() == "none":
+                    config.TYPE_PARAM = None
+                else:
+                    config.TYPE_PARAM = int(val)
+            except:
+                pass
+
     # XQ_A_TOKEN 不再需要，依赖 run.py 中的浏览器登录会话
-    spider = XueqiuLongPostSpider(DEFAULT_USERNAME, DEFAULT_USER_ID, type_param=TYPE_PARAM, filter_regex=FILTER_REGEX)
+    spider = XueqiuLongPostSpider(DEFAULT_USERNAME, DEFAULT_USER_ID, type_param=config.TYPE_PARAM, filter_regex=FILTER_REGEX)
     # 限制抓取页数以供测试
     spider.run(start_page=1, end_page=2) 
 

@@ -634,6 +634,20 @@ class XueqiuShortPostSpider:
 if __name__ == "__main__":
     import sys
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    from config import DEFAULT_USERNAME, DEFAULT_USER_ID, FILTER_REGEX, TYPE_PARAM
-    spider = XueqiuShortPostSpider(DEFAULT_USERNAME, DEFAULT_USER_ID, type_param=TYPE_PARAM, filter_regex=FILTER_REGEX)
+    import config
+    from config import DEFAULT_USERNAME, DEFAULT_USER_ID, FILTER_REGEX
+
+    # 支持命令行 --type=X
+    for arg in sys.argv:
+        if arg.startswith("--type="):
+            try:
+                val = arg.split("=")[1]
+                if val.lower() == "none":
+                    config.TYPE_PARAM = None
+                else:
+                    config.TYPE_PARAM = int(val)
+            except:
+                pass
+
+    spider = XueqiuShortPostSpider(DEFAULT_USERNAME, DEFAULT_USER_ID, type_param=config.TYPE_PARAM, filter_regex=FILTER_REGEX)
     spider.run(start_page=1, end_page=2)

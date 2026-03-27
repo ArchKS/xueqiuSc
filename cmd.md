@@ -13,6 +13,13 @@ python3 main.py 雪月霜 1505944393
 sh batch_run_ranges.sh 史诗级韭菜 2214010836 1 16
 sh batch_run_ranges.sh 菜头日记Z 5266360866 1 224
 
+sh batch_run_ranges.sh flcq 1393486978 1 4 # 长文
+sh batch_run_ranges.sh flcq 1393486978 1 4 # 短贴
+
+
+sh batch_run_ranges.sh LTLyra 1429872781 1 109 none 
+sh batch_run_ranges.sh LTLyra 1429872781 1 4 2 
+
 
 Todo：
 sh batch_run_ranges.sh 管我财 9650668145 1 1827

@@ -11,7 +11,7 @@ from xueqiu_short_post_spider import XueqiuShortPostSpider
 from xueqiu_long_post_spider import XueqiuLongPostSpider
 import config
 from config import (
-    TYPE_PARAM, FILTER_REGEX, USER_LIST, TIME_CONFIG,
+    FILTER_REGEX, USER_LIST, TIME_CONFIG,
     DEFAULT_MIN_LIKES, DEFAULT_MIN_COMMENTS, DEFAULT_MIN_LENGTH,
     DEFAULT_SUPER_LIKES, DEFAULT_SUPER_COMMENTS, DEFAULT_SUPER_LENGTH
 )
@@ -358,6 +358,19 @@ class TimeLimitedLongSpider(XueqiuLongPostSpider):
             time.sleep(random.uniform(1, 3))
 
 def main():
+    # 支持在命令行配置 TYPE_PARAM (--type=0, --type=2, --type=none)
+    for arg in sys.argv:
+        if arg.startswith("--type="):
+            try:
+                val = arg.split("=")[1]
+                if val.lower() == "none":
+                    config.TYPE_PARAM = None
+                else:
+                    config.TYPE_PARAM = int(val)
+                print(f"{BLUE}命令行配置: TYPE_PARAM = {config.TYPE_PARAM}{RESET}")
+            except (ValueError, IndexError):
+                print(f"{RED}[-] 错误: --type 必须指定数字值 (0 或 2) 或 none{RESET}")
+
     start_limit, end_limit = get_time_limits(TIME_CONFIG)
     unified_file = get_unified_filename(TIME_CONFIG)
     
@@ -383,11 +396,11 @@ def main():
 
         print(f"\n{BOLD}{MAGENTA}>>> 正在处理博主: {name} ({uid}){RESET}")
         try:
-            if TYPE_PARAM == 2:
-                spider = TimeLimitedLongSpider(name, uid, start_limit, end_limit, type_param=TYPE_PARAM, filter_regex=FILTER_REGEX, unified_filename=unified_file)
+            if config.TYPE_PARAM == 2:
+                spider = TimeLimitedLongSpider(name, uid, start_limit, end_limit, type_param=config.TYPE_PARAM, filter_regex=FILTER_REGEX, unified_filename=unified_file)
                 spider.run(start_page=1, end_page=None)
             else:
-                spider = TimeLimitedShortSpider(name, uid, start_limit, end_limit, type_param=TYPE_PARAM, filter_regex=FILTER_REGEX, unified_filename=unified_file)
+                spider = TimeLimitedShortSpider(name, uid, start_limit, end_limit, type_param=config.TYPE_PARAM, filter_regex=FILTER_REGEX, unified_filename=unified_file)
                 spider.run(start_page=1, end_page=None)
             
             print(f"{GREEN}[V] 博主 {name} 处理完成。{RESET}")
