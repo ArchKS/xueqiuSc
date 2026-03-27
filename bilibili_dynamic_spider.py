@@ -126,15 +126,15 @@ class BilibiliDynamicSpider:
 
                             # 4. 提取内容
                             content = ""
-                            desc_module = modules.get('module_dynamic', {})
+                            desc_module = modules.get('module_dynamic', {}) or {}
                             
                             # A. 尝试从主要内容区提取
-                            if desc_module.get('major'):
-                                major = desc_module['major']
+                            major = desc_module.get('major') or {}
+                            if major:
                                 m_type = major.get('type')
                                 
                                 if m_type == 'MAJOR_TYPE_OPUS':
-                                    opus = major.get('opus', {})
+                                    opus = major.get('opus', {}) or {}
                                     content = opus.get('title', '') or ''
                                     if opus.get('content', {}).get('text'):
                                         content += " " + opus['content']['text']
@@ -147,7 +147,7 @@ class BilibiliDynamicSpider:
                             
                             # B. 如果 A 没拿到，从描述文字区拿
                             if not content.strip():
-                                content = desc_module.get('desc', {}).get('text', '')
+                                content = desc_module.get('desc', {}).get('text', '') or ''
 
                             # C. 如果还是空的，尝试从其他模块拿
                             if not content.strip():
@@ -159,16 +159,31 @@ class BilibiliDynamicSpider:
                             # D. 转发内容处理
                             if item.get('type') == 'DYNAMIC_TYPE_FORWARD':
                                 orig = item.get('orig', {})
-                                orig_modules = orig.get('modules', {})
-                                orig_desc = orig_modules.get('module_dynamic', {}).get('desc', {}).get('text', '')
-                                if not orig_desc:
-                                    # 转发的可能是视频
-                                    orig_major = orig_modules.get('module_dynamic', {}).get('major', {})
-                                    if orig_major.get('type') == 'MAJOR_TYPE_ARCHIVE':
-                                        orig_desc = "[视频] " + orig_major.get('archive', {}).get('title', '')
-                                
-                                if orig_desc:
-                                    content += f" // 转发原文: {orig_desc.strip()}"
+                                if orig:
+                                    orig_modules = orig.get('modules', {}) or {}
+                                    orig_dyn = orig_modules.get('module_dynamic', {}) or {}
+                                    orig_desc = orig_dyn.get('desc', {}).get('text', '')
+                                    if not orig_desc:
+                                        # 转发的可能是视频
+                                        orig_major = orig_dyn.get('major', {}) or {}
+                                        if orig_major.get('type') == 'MAJOR_TYPE_ARCHIVE':
+                                            orig_desc = "[视频] " + orig_major.get('archive', {}).get('title', '')
+                                    
+                                    if orig_desc:
+                                        content += f" // 转发原文: {orig_desc.strip()}"
+
+                            # 如果有“展开”按钮，点击后再获取内容以确保完整
+                            try:
+                                # 寻找当前页面中包含该动态 ID 的卡片
+                                card = self.page.ele(f'css:.bili-dyn-list__item:has(a[href*="{post_id}"])', timeout=0.1)
+                                if card:
+                                    expand = card.ele('text=展开', timeout=0.1)
+                                    if expand:
+                                        expand.click(by_js=True)
+                                        time.sleep(0.3)
+                                        ui_text = card.ele('.bili-dyn-content__text') or card.ele('.bili-dyn-item__main')
+                                        if ui_text: content = ui_text.text.strip()
+                            except: pass
 
                             content = content.strip()
                             if not content and not link: continue
