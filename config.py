@@ -70,6 +70,9 @@ TIME_CONFIG = {
 }
 
 # ================= 爬取行为配置 =================
+# 是否加载图片 (True: 加载, False: 禁用图片加载以节省流量和提升速度)
+LOAD_IMAGES = True
+
 # TYPE_PARAM 控制抓取类型与使用的引擎：
 # None : 抓取所有短贴（包含转发），使用 UI 模式引擎 (XueqiuShortPostSpider)
 # 0    : 只抓取原发短贴，使用 UI 模式引擎 (XueqiuShortPostSpider)

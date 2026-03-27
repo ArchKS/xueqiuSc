@@ -14,6 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 import threading
 import colorama
 from tqdm import tqdm
+from config import LOAD_IMAGES
 try:
     from plyer import notification
 except ImportError:
@@ -44,7 +45,7 @@ class XueqiuShortPostSpider:
         
         from DrissionPage import ChromiumOptions
         co = ChromiumOptions()
-        co.no_imgs(True)
+        co.no_imgs(not LOAD_IMAGES)
         co.set_load_mode('eager')
         # co.set_argument('--dns-prefetch-disable', 'false')        
         

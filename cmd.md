@@ -9,31 +9,26 @@ python3 main.py PaulWuZ 1965894836
 python3 main.py 凝视三千弱水的深渊 9236758887
 python3 main.py 超级鹿鼎公 8790885129 10 10
 python3 main.py 雪月霜 1505944393
-
 sh batch_run_ranges.sh 史诗级韭菜 2214010836 1 16
 sh batch_run_ranges.sh 菜头日记Z 5266360866 1 224
-
 sh batch_run_ranges.sh flcq 1393486978 1 4 # 长文
 sh batch_run_ranges.sh flcq 1393486978 1 4 # 短贴
-
-
 sh batch_run_ranges.sh LTLyra 1429872781 1 109 none 
 sh batch_run_ranges.sh LTLyra 1429872781 1 4 2 
+sh batch_run_ranges.sh 管我财 9650668145 1 1827
+
+# B站动态爬取 (根据 config.py 中的 TIME_CONFIG 范围)
+python bilibili_dynamic_spider.py 史诗级韭菜 322005137
 
 
 Todo：
-sh batch_run_ranges.sh 管我财 9650668145 1 1827
 
 python3 main.py 狸哥很懒 1835829265
 python3 main.py Conan的投资笔记 1830611415
-python3 main.py Elon翻开每一页 5739488179
+python3 main.py 韭菲特漂流记 8414744881
 python3 main.py 石stone 5509299851
 python3 main.py 火蚁投资 2063132956
 
-python3 main.py 胜和 2612090930
-python3 main.py 陸陸陸三率投资 3579186337
-
-python3 main.py metalslime 2292705444
 
 
 

@@ -11,6 +11,7 @@ import random
 from datetime import datetime
 from html import unescape
 import colorama
+from config import LOAD_IMAGES
 
 # 初始化 colorama 以支持 Windows 颜色输出
 colorama.init(autoreset=True)
@@ -37,7 +38,7 @@ class XueqiuLongPostSpider:
         # 性能优化配置
         from DrissionPage import ChromiumOptions
         co = ChromiumOptions()
-        co.no_imgs(True)           # 禁用图片加载
+        co.no_imgs(not LOAD_IMAGES)           # 控制图片加载
         co.set_load_mode('eager')  # DOM 加载完即返回，不等待图片和广告        # 预连接雪球，减少 DNS 解析和握手时间
         co.set_argument('--dns-prefetch-disable', 'false')        
         # 初始化浏览器页面对象
