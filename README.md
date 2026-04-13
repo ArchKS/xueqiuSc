@@ -20,28 +20,20 @@ DrissionPage 需要 Chromium 浏览器来运行爬虫。首次运行项目时，
 python -c "from DrissionPage import ChromiumPage; ChromiumPage()"
 ```
 
-或者直接运行项目的 main.py，它会在首次执行时自动下载：
-
-```bash
-python main.py <用户名> <用户ID> 页面开始位置
-```
-
-3. 手动指定 Chrome 路径（可选）
-
-如果自动下载失败或你希望使用本地已安装的 Chrome，可以在 xueqiu_short_post_spider.py 或 xueqiu_long_post_spider.py 中修改：
-
-```python
-self.page = ChromiumPage()
-
-# 如果使用本地 Chrome（Windows 路径示例）：
-self.page = ChromiumPage(addr=r'C:\Program Files\Google\Chrome\Application\chrome.exe')
-
-# Linux/Mac 示例：
-# self.page = ChromiumPage(addr='/usr/bin/google-chrome')
-```
 
 ## 使用方法
 
+```bash
+# 1. 先登录
+python3 xueqiu_auth_login.py
+
+#2. 爬取短贴和转发
+sh batch_run_ranges.sh 价投6688 7462417628 1 215 TYPE_PARAM=None
+
+#3. 爬取长贴
+sh batch_run_ranges.sh 价投6688 7462417628 1 215 TYPE_PARAM=2
+
+```
 
 ```bash
 # 爬取全部页码并分析
