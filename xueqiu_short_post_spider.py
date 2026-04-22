@@ -1,6 +1,7 @@
 import warnings
 warnings.simplefilter("ignore")
-
+from config import MAX_WORKERS, PAGINATION_WORKER_MODE, DEFAULT_USERNAME, DEFAULT_USER_ID, FILTER_REGEX,PAUSE_ON_EMPTY_CONTENT
+import config
 from DrissionPage import ChromiumPage
 import time
 import os
@@ -44,7 +45,7 @@ class XueqiuShortPostSpider:
         
         from DrissionPage import ChromiumOptions
         co = ChromiumOptions()
-        co.no_imgs(True)
+        co.no_imgs(config.NO_IMG)           # 禁用图片加载
         co.set_load_mode('eager')
         # co.set_argument('--dns-prefetch-disable', 'false')        
         
@@ -104,7 +105,7 @@ class XueqiuShortPostSpider:
 
     def fetch_posts(self, start_page=1, end_page=None, existing_ids=None, filename=None):
         """[并发版] 顺序翻页优化版"""
-        from config import MAX_WORKERS, PAGINATION_WORKER_MODE
+       
         num_workers = MAX_WORKERS if MAX_WORKERS else 3
         job_start = time.time()
         self.stop_event.clear()
@@ -509,7 +510,7 @@ class XueqiuShortPostSpider:
                                     if title_ele and title_ele.text:
                                         d['正文'] = title_ele.text
                                     else:
-                                        from config import PAUSE_ON_EMPTY_CONTENT
+                                       
                                         if PAUSE_ON_EMPTY_CONTENT:
                                             # 如果确定是真的没获取到任何内容，暂停让用户处理
                                             tqdm.write(f"{RED}[!] 当前已经获取不到内容 (字数为0) | ID: {pid}{RESET}")
@@ -634,8 +635,6 @@ class XueqiuShortPostSpider:
 if __name__ == "__main__":
     import sys
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    import config
-    from config import DEFAULT_USERNAME, DEFAULT_USER_ID, FILTER_REGEX
 
     # 支持命令行 --type=X
     for arg in sys.argv:

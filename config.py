@@ -1,5 +1,7 @@
 
 
+NO_IMG = False  # 是否禁用图片加载（True/False）
+
 # 正则过滤列表：匹配到则不保存该条记录（用于过滤系统通知类型内容）
 # 注意：每条正则会应用于帖子标题/正文前缀，不区分大小写
 
@@ -54,8 +56,13 @@ USER_LIST = [
     # {"username": "柯中", "userid": "5243796549"},
     # {"username": "PaulWu", "userid": "1965894836"},
     # {"username": "凝视三千弱水的深渊", "userid": "9236758887"},
-    {"username": "雪月霜", "userid": "1505944393"},
+    # {"username": "雪月霜", "userid": "1505944393"},
     # {"username": "史诗级韭菜", "userid": "2214010836"},
+    # {"username": "菜头日记", "userid": "5266360866"},
+    {"username": "LTLyra", "userid": "1429872781"},
+    {"username": "湘沩山水", "userid": "8313854958"},
+    {"username": "韭菲特漂流记", "userid": "8414744881"},
+    {"username": "金融街行藏", "userid": "2864315423"},
 ]
 
 # 时间范围配置
@@ -64,7 +71,7 @@ USER_LIST = [
 # 如果是 'days'/'months'/'years'，需提供 value
 TIME_CONFIG = {
     "mode": "days",    # 默认近 30 天
-    "value": 1, 
+    "value": 26, 
     "start_date": None, 
     "end_date": None
 }
@@ -91,7 +98,7 @@ else:
 # ================= 并发爬取配置 =================
 # 控制同时开启的浏览器标签页（Tab）数量
 # 建议：3-5 之间。数字越大速度越快，但对电脑性能和反爬风险要求越高。
-MAX_WORKERS = 2
+MAX_WORKERS = 1
 
 # ================= 并发分段模式配置 =================
 # 可选值:
