@@ -58,6 +58,21 @@ python3 batch_spider_by_time.py
 
 ```
 
+批次处理，会把data中的数据删除序号、摘要、链接、转赞评后，只保留日期和正文放在result/文件夹，命名格式为: name_time_content.csv
+
+过滤条件在config中配置
+
+```bash
+sh batch_process.sh
+
+# [+] 保留 18 条唯一记录。保存至: filter\菜头日记_filter_C1_Len10.csv
+# [-] 剔除 1 条不合规记录。保存至: filter\菜头日记_rejected_C1_Len10.csv
+# 正在处理: 菜头日记_filter_C1_Len10.csv...
+# 成功保存原序版到: filter\菜头日记_filter_C1_Len10_time_content.csv
+# 成功保存排序版到: filter\菜头日记_filter_C1_Len10_top_engagement.csv
+# [+] 成功生成: result/菜头日记_time_content.csv
+```
+
 过滤数据
 
 ```bash

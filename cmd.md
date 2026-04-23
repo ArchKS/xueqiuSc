@@ -39,13 +39,13 @@ python3 main.py 陸陸陸三率投资 3579186337
 python3 main.py metalslime 2292705444
 
 
-sh batch_run_ranges.sh 韭菲特漂流记 8414744881 1 238 none
-sh batch_run_ranges.sh 韭菲特漂流记 8414744881 1 238 2 
+sh batch_run_ranges.sh 韭菲特漂流记 8414744881 1 238 TYPE_PARAM=none
+sh batch_run_ranges.sh 韭菲特漂流记 8414744881 1 238 TYPE_PARAM=2
 
-sh batch_run_ranges.sh 湘沩山水 8313854958 1 185 none
-sh batch_run_ranges.sh 湘沩山水 8313854958 1 185 2 
+sh batch_run_ranges.sh 湘沩山水 8313854958 1 185 TYPE_PARAM=none
+sh batch_run_ranges.sh 湘沩山水 8313854958 1 185 TYPE_PARAM=2
 
-sh batch_run_ranges.sh C4Cire 4373567778 1 204 none
-sh batch_run_ranges.sh C4Cire 4373567778 1 204 2 
+sh batch_run_ranges.sh C4Cire 4373567778 1 204 TYPE_PARAM=none
+sh batch_run_ranges.sh C4Cire 4373567778 1 204 TYPE_PARAM=2
 
 
