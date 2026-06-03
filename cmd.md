@@ -55,4 +55,6 @@ sh batch_run_ranges.sh C4Cire 4373567778 1 204 TYPE_PARAM=2
 sh batch_run_ranges.sh 风之樱意 2871720724 1 1000 none
 sh batch_run_ranges.sh 风之樱意 2871720724 1 1000 2
 
+sh batch_run_ranges.sh TfR1lyxxx快乐鼠鼠 2693678800 1 301 none
+sh batch_run_ranges.sh TfR1lyxxx快乐鼠鼠之樱意 2693678800 1 3 2
 
